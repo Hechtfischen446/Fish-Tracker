@@ -1463,16 +1463,22 @@
   }
 
   // ───────────────────────── Start ─────────────────────────
-  // iOS-Web-App: erkennen, ob iOS unten bereits Platz für den Home-Indikator reserviert hat
+  // iOS-Web-App: iOS 26.0 meldet im App-Modus eine zu kleine Höhe – dann fehlt unten ein Streifen.
+  // Liegt die App unter der Statusleiste (Inset oben > 0), entspricht die echte Höhe der Bildschirmhöhe.
+  const insetProbe = document.createElement("div");
+  insetProbe.style.cssText = "position:fixed;top:0;left:0;width:0;visibility:hidden;pointer-events:none;height:env(safe-area-inset-top)";
+  document.body.appendChild(insetProbe);
   function fitStandalone() {
     const root = document.documentElement;
     const standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
     root.classList.toggle("standalone", standalone);
-    if (!standalone) { root.classList.remove("bottom-reserved"); return; }
+    root.style.removeProperty("--app-h");
+    if (!standalone) return;
     const portrait = window.innerHeight >= window.innerWidth;
     const full = portrait ? Math.max(screen.height, screen.width) : Math.min(screen.height, screen.width);
-    // Statusleiste ist höchstens ca. 62 pt hoch – fehlt deutlich mehr, ist unten Platz reserviert
-    root.classList.toggle("bottom-reserved", portrait && full - window.innerHeight > 70);
+    const underStatusBar = insetProbe.offsetHeight > 0;
+    const h = underStatusBar ? full : window.innerHeight;
+    if (h > window.innerHeight + 1) root.style.setProperty("--app-h", h + "px");
   }
   fitStandalone();
   window.addEventListener("resize", fitStandalone);
