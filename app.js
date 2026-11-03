@@ -1463,6 +1463,21 @@
   }
 
   // ───────────────────────── Start ─────────────────────────
+  // iOS-Web-App: erkennen, ob iOS unten bereits Platz für den Home-Indikator reserviert hat
+  function fitStandalone() {
+    const root = document.documentElement;
+    const standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+    root.classList.toggle("standalone", standalone);
+    if (!standalone) { root.classList.remove("bottom-reserved"); return; }
+    const portrait = window.innerHeight >= window.innerWidth;
+    const full = portrait ? Math.max(screen.height, screen.width) : Math.min(screen.height, screen.width);
+    // Statusleiste ist höchstens ca. 62 pt hoch – fehlt deutlich mehr, ist unten Platz reserviert
+    root.classList.toggle("bottom-reserved", portrait && full - window.innerHeight > 70);
+  }
+  fitStandalone();
+  window.addEventListener("resize", fitStandalone);
+  window.addEventListener("orientationchange", () => setTimeout(fitStandalone, 300));
+
   const updateNet = () => ($("#netStatus").hidden = navigator.onLine);
   window.addEventListener("online", () => { updateNet(); renderView(currentView); });
   window.addEventListener("offline", updateNet);
