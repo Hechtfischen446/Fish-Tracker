@@ -399,11 +399,35 @@
     for (let v = lo; v <= hi + step / 2; v += step) out.push(+v.toFixed(6));
     return out;
   }
+  // Interaktion für Diagramme: Maus = Hover, Finger = Tippen/Wischen; der Wert bleibt nach dem Loslassen stehen
+  let chartTipTimer;
+  function chartInteract(svg, show, hide) {
+    svg.style.touchAction = "pan-y"; // waagrecht wischen bewegt den Cursor, senkrecht scrollt die Seite
+    const onMove = (e) => { show(e); clearTimeout(chartTipTimer); };
+    svg.addEventListener("pointerdown", onMove);
+    svg.addEventListener("pointermove", (e) => { if (e.pointerType === "mouse" || e.buttons) onMove(e); });
+    svg.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") hide(); });
+    svg.addEventListener("pointerup", (e) => { if (e.pointerType !== "mouse") { clearTimeout(chartTipTimer); chartTipTimer = setTimeout(hide, 4000); } });
+    svg.addEventListener("pointercancel", () => { clearTimeout(chartTipTimer); chartTipTimer = setTimeout(hide, 1500); });
+    svg._hideTip = hide;
+  }
+  document.addEventListener("pointerdown", (e) => {
+    if (e.target.closest && e.target.closest(".chart")) return;
+    $$(".chart svg").forEach((sv) => sv._hideTip && sv._hideTip());
+  });
+  function placeTip(tip, text, px, py, wrapW) {
+    tip.textContent = text;
+    tip.hidden = false;
+    const tw = tip.offsetWidth || 120;
+    tip.style.left = `${Math.max(tw / 2 + 2, Math.min(wrapW - tw / 2 - 2, px))}px`;
+    tip.style.top = `${py}px`;
+  }
+
   // Zeitreihe (Linie oder Balken), eine Serie, eine Achse
   function timeChart(el, { data, unit = "", digits = 0, type = "line", height = 130, zeroBase = false, invert = false, maxY = null, minSpan = 0 }) {
     const pts = data.filter((p) => p[1] != null);
     if (pts.length < 2) { el.innerHTML = `<p class="faint small">Keine Daten</p>`; return; }
-    const W = Math.max(280, el.clientWidth || 320), H = height, m = { l: minSpan && minSpan < 1 ? 46 : 34, r: 8, t: 10, b: 22 };
+    const W = Math.max(280, el.clientWidth || 320), H = height, m = { l: minSpan && minSpan < 1 ? 46 : 34, r: 8, t: 18, b: 22 };
     const x0 = pts[0][0], x1 = pts[pts.length - 1][0];
     let ys = pts.map((p) => p[1]), lo = Math.min(...ys), hi = Math.max(...ys);
     if (zeroBase || type === "bar") lo = 0;
@@ -435,7 +459,7 @@
       s += `<path class="area" d="${path}L${X(x1)},${Y(lo)}L${X(x0)},${Y(lo)}Z"/><path class="series" d="${path}"/>`;
     }
     const now = Date.now();
-    if (now > x0 && now < x1) s += `<line class="now-l" x1="${X(now)}" x2="${X(now)}" y1="${m.t}" y2="${H - m.b}"/><text class="axis-t" x="${X(now) + 3}" y="${m.t + 8}">jetzt</text>`;
+    if (now > x0 && now < x1) s += `<line class="now-l" x1="${X(now)}" x2="${X(now)}" y1="${m.t}" y2="${H - m.b}"/><text class="axis-t" x="${X(now)}" y="${m.t - 6}" text-anchor="middle">jetzt</text>`;
     s += `<line class="cross" x1="0" x2="0" y1="${m.t}" y2="${H - m.b}" visibility="hidden"/><circle class="dot" r="4" visibility="hidden"/>`;
     s += `<rect x="${m.l}" y="0" width="${W - m.l - m.r}" height="${H}" fill="transparent"/></svg><div class="tip" hidden></div>`;
     el.innerHTML = s;
@@ -447,14 +471,11 @@
       const cx = X(p[0]), cy = Y(p[1]);
       cross.setAttribute("x1", cx); cross.setAttribute("x2", cx); cross.setAttribute("visibility", "visible");
       dot.setAttribute("cx", cx); dot.setAttribute("cy", cy); dot.setAttribute("visibility", type === "bar" ? "hidden" : "visible");
-      tip.hidden = false;
-      tip.style.left = `${(cx / W) * 100}%`; tip.style.top = `${(cy / H) * r.height}px`;
-      tip.textContent = `${new Date(p[0]).toLocaleString("de-CH", { weekday: "short", hour: "2-digit", minute: "2-digit" })} · ${nf(p[1], digits)} ${unit}`;
+      const label = unit ? `${nf(p[1], digits)} ${unit}` : `Index ${nf(p[1], digits)}`;
+      placeTip(tip, `${new Date(p[0]).toLocaleString("de-CH", { weekday: "short", hour: "2-digit", minute: "2-digit" })} · ${label}`, (cx / W) * r.width, (cy / H) * r.height, r.width);
     };
     const leave = () => { tip.hidden = true; cross.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); };
-    svg.addEventListener("pointermove", move);
-    svg.addEventListener("pointerdown", move);
-    svg.addEventListener("pointerleave", leave);
+    chartInteract(svg, move, leave);
   }
   // Temperaturprofil: x = Temperatur, y = Tiefe (nach unten)
   function profileChart(el, { profile, thermo, maxDepth }) {
@@ -483,12 +504,9 @@
       const p = pts.reduce((a, b) => (Math.abs(b[0] - d) < Math.abs(a[0] - d) ? b : a));
       cross.setAttribute("y1", Y(p[0])); cross.setAttribute("y2", Y(p[0])); cross.setAttribute("visibility", "visible");
       dot.setAttribute("cx", X(p[1])); dot.setAttribute("cy", Y(p[0])); dot.setAttribute("visibility", "visible");
-      tip.hidden = false; tip.style.left = `${(X(p[1]) / W) * 100}%`; tip.style.top = `${(Y(p[0]) / H) * r.height}px`;
-      tip.textContent = `${nf(p[0], 0)} m · ${nf(p[1], 1)} °C`;
+      placeTip(tip, `${nf(p[0], 0)} m · ${nf(p[1], 1)} °C`, (X(p[1]) / W) * r.width, (Y(p[0]) / H) * r.height, r.width);
     };
-    svg.addEventListener("pointermove", move);
-    svg.addEventListener("pointerdown", move);
-    svg.addEventListener("pointerleave", () => { tip.hidden = true; cross.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); });
+    chartInteract(svg, move, () => { tip.hidden = true; cross.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); });
   }
   const barsList = (entries, fmt = (k) => k) => {
     const max = Math.max(1, ...entries.map((e) => e[1]));
@@ -1342,7 +1360,7 @@
       setTile("mAir", `${nf(m.temp)}<small>°C</small>`, m.hum != null ? `Feuchte ${nf(m.hum, 0)} %` : "");
       setTile("mWind", `${nf(m.wind, 0)}<small>km/h ${dirName(m.dir)}</small>`, m.gust != null ? `Böen ${nf(m.gust, 0)} km/h` : "");
       setTile("mPress", m.qff != null ? `${nf(m.qff, 0)}<small>hPa</small>` : null, "Meeresniveau (QFF)");
-      setTile("mRain", `${nf(m.rain, 1)}<small>mm</small>`, "letzte 10 Minuten");
+      setTile("mRain", m.rain != null ? `${nf(m.rain, 1)}<small>mm</small>` : null, m.rain != null ? "letzte 10 Minuten" : "keine Messung an dieser Station");
     }).catch(() => ["mAir", "mWind", "mPress", "mRain"].forEach((id) => setTile(id, null, "Nicht erreichbar")));
   }
 
