@@ -57,7 +57,8 @@ html, body { margin: 0; height: 100%; }
 body {
   font: 15px/1.45 var(--font);
   font-feature-settings: "tnum" 1, "cv11" 1;
-  background: var(--bg);
+  /* Fläche ausserhalb der App (z. B. von iOS reservierter Bereich unten) in Farbe der Tab-Leiste */
+  background: var(--surface);
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
@@ -65,7 +66,7 @@ body {
   touch-action: manipulation;
 }
 /* Volle Bildschirmhöhe auch als installierte App (iOS) */
-.app { position: fixed; inset: 0; display: flex; flex-direction: column; overflow: hidden; }
+.app { position: fixed; inset: 0; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
 h1 { font-size: 1.75rem; line-height: 1.15; letter-spacing: -.02em; margin: 0; font-weight: 700; }
 h2 { font-size: 1.15rem; letter-spacing: -.01em; margin: 0; font-weight: 650; }
 h3 { font-size: .8rem; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); margin: 0 0 10px; font-weight: 600; }
@@ -396,3 +397,8 @@ dialog::backdrop { background: rgba(8, 14, 18, .45); }
 .toggle-btn.open { border-bottom-left-radius: 0; border-bottom-right-radius: 0; margin-bottom: 0; border-bottom-color: transparent; }
 .toggle-panel { border-top-left-radius: 0; border-top-right-radius: 0; border-top: 0; padding-top: 4px; }
 .day-sub .ic { vertical-align: -3px; }
+
+/* Installierte App (iOS-Home-Bildschirm) */
+html.standalone .appbar { padding-top: calc(env(safe-area-inset-top) + 24px); }
+/* iOS hat den Bereich des Home-Indikators bereits reserviert – keinen zusätzlichen Abstand einfügen */
+html.bottom-reserved .tabbar { --tab-pad: 2px; }
