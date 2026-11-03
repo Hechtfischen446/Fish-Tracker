@@ -15,7 +15,7 @@ Installierbare Web-App (PWA) fürs Fischen in der Schweiz. Du wählst ein Gewäs
   - Beisszeiten, Spots, eigene Fänge, Regeln und Patent
 - **Karte**: swisstopo-Landeskarte (mit Tiefenlinien), SWISSIMAGE-Luftbild, swissBATHY3D-Seegrundrelief, OpenStreetMap und OpenSeaMap. Öffentliche Fischerplätze, Slipanlagen und Häfen aus OSM lassen sich einblenden.
 - **Fänge**: Fischart, Grösse, Gewicht, Technik, Köder, Fangtiefe, Spot, Foto und GPS. Wassertemperatur und Wetter werden automatisch mitgespeichert. Die Statistik wertet nach Köder, Uhrzeit, Wassertemperatur, Fangtiefe, Monat und Mondphase aus.
-- **Prognose**: Solunar-Beisszeiten mit Tageswertung und 7-Tage-Übersicht, MeteoSwiss-Messwerte, 48-Stunden-Diagramme (MeteoSwiss ICON-CH) und eine Einschätzung fürs Fischen.
+- **Prognose**: Solunar-Beisszeiten mit stündlichem Beissindex (Mond, Dämmerung und Wetter), besten Zeitfenstern und passenden Fischarten pro Beisszeit. Dazu 7-Tage-Übersicht, MeteoSwiss-Messwerte, 48-Stunden-Diagramme (MeteoSwiss ICON-CH) und Wasserdaten (Temperatur, Sprungschicht, Pegel).
 - **Wissen**: 15 Fischarten mit Schweizer Namen (Egli, Felchen, Alet, Trüsche …), Fangkalender und Laichzeiten, Techniken (z. B. Hegene, Schleppen) und Regeln in der Schweiz.
 - **Offline & privat**: Alle persönlichen Daten bleiben auf dem Gerät (IndexedDB). Backup ist per Export/Import möglich.
 
@@ -28,6 +28,7 @@ Installierbare Web-App (PWA) fürs Fischen in der Schweiz. Du wählst ein Gewäs
 | Seetemperatur & Sprungschicht | Eawag [Alplakes](https://www.alplakes.eawag.ch) (Simstrat) | alle 3 h durch GitHub Action → `data/lakes.json` |
 | Pegel, Abfluss, Flusstemperatur | [BAFU Hydrodaten](https://www.hydrodaten.admin.ch) via existenz.ch | live im Browser |
 | Karten | swisstopo, OpenStreetMap, OpenSeaMap | live, angesehene Kacheln offline |
+| Fischfotos | [iNaturalist](https://www.inaturalist.org) (CC-Lizenzen, Urheber in der App angegeben) | einmalig in `images/fish/` gespeichert |
 
 Alplakes erlaubt keine direkten Browser-Abfragen von fremden Websites. Deshalb holt der Workflow `.github/workflows/pages.yml` die Daten alle 3 Stunden mit `scripts/fetch-data.mjs` und veröffentlicht sie zusammen mit der App.
 

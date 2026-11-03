@@ -52,7 +52,25 @@ async function lakes(catalog) {
       const start = new Date(now.getTime() - 3 * 864e5);
       const ts = await getJSON(`https://alplakes-api.eawag.ch/simulations/1d/point/simstrat/${w.alplakes}/${stamp(start)}/${stamp(end)}/1?variables=T`);
       const surface = ts.time.map((x, i) => [x.slice(0, 16) + "Z", round(ts.variables.T.data[i])]).filter((p) => p[1] != null);
-      result[w.key] = { time: prof.time, profile, surface };
+      // Sprungschicht-Verlauf: Tiefe mit dem stärksten Temperaturabfall (≥ 0.4 °C/m) pro Zeitschritt
+      let thermo = [];
+      try {
+        const dt = await getJSON(`https://alplakes-api.eawag.ch/simulations/1d/depthtime/simstrat/${w.alplakes}/${stamp(start)}/${stamp(end)}?variables=T`);
+        const dep = dt.depth.data, T = dt.variables.T.data; // T[depth][time]
+        const order = dep.map((d, i) => [d, i]).filter(([d]) => d <= 60).sort((x, y) => x[0] - y[0]);
+        thermo = dt.time.map((x, ti) => {
+          let best = { g: 0, d: null };
+          for (let k = 1; k < order.length; k++) {
+            const [d0, i0] = order[k - 1], [d1, i1] = order[k];
+            const t0 = T[i0]?.[ti], t1 = T[i1]?.[ti];
+            if (t0 == null || t1 == null) continue;
+            const g = (t0 - t1) / (d1 - d0);
+            if (g > best.g) best = { g, d: (d0 + d1) / 2 };
+          }
+          return [x.slice(0, 16) + "Z", best.g >= 0.4 ? round(best.d, 1) : null];
+        });
+      } catch (e) { console.warn(`  (Sprungschicht-Verlauf ${w.name}: ${e.message})`); }
+      result[w.key] = { time: prof.time, profile, surface, thermo };
       console.log(`✓ ${w.name}: ${profile.length} Tiefen, ${surface.length} Zeitpunkte`);
     } catch (e) {
       console.warn(`! ${w.name}: ${e.message}`);
