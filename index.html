@@ -1,136 +1,146 @@
 <!doctype html>
-<html lang="de">
+<html lang="de-CH">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Fish Tracker</title>
-  <meta name="description" content="Fänge eintragen, Spots finden, Beißzeiten und Techniken – mit interaktiver Karte.">
-  <meta name="theme-color" content="#0b4f6c">
+  <meta name="description" content="Fänge, Spots, Beisszeiten, MeteoSwiss-Wetter und Wassertemperaturen für Schweizer Gewässer.">
+  <meta name="theme-color" content="#f6f7f8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0c1115" media="(prefers-color-scheme: dark)">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Fish Tracker">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand"><img src="icons/icon.svg" alt="" width="28" height="28"> Fish Tracker</div>
-    <div id="netStatus" class="net" hidden>offline</div>
-  </header>
+  <!-- Icon-Sprite -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-water" viewBox="0 0 24 24"><path d="M2 7c2 0 2-1.5 4-1.5S8 7 10 7s2-1.5 4-1.5S16 7 18 7s2-1.5 4-1.5M2 12.5c2 0 2-1.5 4-1.5s2 1.5 4 1.5 2-1.5 4-1.5 2 1.5 4 1.5 2-1.5 4-1.5M2 18c2 0 2-1.5 4-1.5S8 18 10 18s2-1.5 4-1.5 2 1.5 4 1.5 2-1.5 4-1.5"/></symbol>
+      <symbol id="i-map" viewBox="0 0 24 24"><path d="M9 4 3 6.2v13.8l6-2.2 6 2.2 6-2.2V4l-6 2.2L9 4z"/><path d="M9 4v13.8M15 6.2V20"/></symbol>
+      <symbol id="i-fish" viewBox="0 0 24 24"><path d="M2.5 12c2.6-3.7 6.2-5.6 10.3-5.6 3.3 0 6 1.9 7.7 5.6-1.7 3.7-4.4 5.6-7.7 5.6-4.1 0-7.7-1.9-10.3-5.6z"/><path d="M2.5 12 1 8.5M2.5 12 1 15.5"/><circle cx="16.3" cy="11" r=".9" fill="currentColor" stroke="none"/></symbol>
+      <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M17.5 19H8a5 5 0 1 1 1.3-9.83A6 6 0 0 1 20.9 12 3.5 3.5 0 0 1 17.5 19z"/></symbol>
+      <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5V5a2 2 0 0 1 2-2h14v15H6a2 2 0 0 0-2 2v.5A1.5 1.5 0 0 0 5.5 22H20"/><path d="M8 7h8M8 11h6"/></symbol>
+      <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></symbol>
+      <symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+      <symbol id="i-chev-r" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+      <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+      <symbol id="i-locate" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></symbol>
+      <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5z"/><path d="m3 13 9 5 9-5"/></symbol>
+      <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></symbol>
+      <symbol id="i-pin" viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></symbol>
+      <symbol id="i-thermo" viewBox="0 0 24 24"><path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0z"/><path d="M12 9v7"/></symbol>
+      <symbol id="i-wind" viewBox="0 0 24 24"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h16a3 3 0 1 1-3 3M3 16h7"/></symbol>
+      <symbol id="i-gauge" viewBox="0 0 24 24"><path d="M3.5 18a9.5 9.5 0 1 1 17 0"/><path d="m12 14 4-4"/><circle cx="12" cy="14" r="1.2" fill="currentColor"/></symbol>
+      <symbol id="i-level" viewBox="0 0 24 24"><path d="M3 20c2 0 2-1.5 4-1.5S9 20 11 20s2-1.5 4-1.5 2 1.5 4 1.5 2-1.5 2-1.5M12 3v12M9 6h3M9 9.5h3M9 13h3"/></symbol>
+      <symbol id="i-flow" viewBox="0 0 24 24"><path d="M3 9c3 0 3-3 6-3s3 3 6 3 3-3 6-3M3 15c3 0 3-3 6-3s3 3 6 3 3-3 6-3"/><path d="m17 18 3 1.5-3 1.5"/><path d="M4 19.5h16"/></symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20.5 13.5A8.5 8.5 0 1 1 10.5 3.5a6.5 6.5 0 0 0 10 10z"/></symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+      <symbol id="i-cloud-sun" viewBox="0 0 24 24"><path d="M8 3.5v1.2M3.5 8h1.2M4.8 4.8l.9.9M11.2 4.8l-.9.9"/><path d="M5.2 10.3a3.2 3.2 0 0 1 5.7-2.7"/><path d="M17.5 20H9a4 4 0 1 1 .9-7.9 5 5 0 0 1 9.6 1.4A3.2 3.2 0 0 1 17.5 20z"/></symbol>
+      <symbol id="i-rain" viewBox="0 0 24 24"><path d="M17.5 15H8a4.5 4.5 0 1 1 1.2-8.84A5.5 5.5 0 0 1 20 9.5 3 3 0 0 1 17.5 15z"/><path d="m9 18-1 2.5M13 18l-1 2.5M17 18l-1 2.5"/></symbol>
+      <symbol id="i-snow" viewBox="0 0 24 24"><path d="M17.5 15H8a4.5 4.5 0 1 1 1.2-8.84A5.5 5.5 0 0 1 20 9.5 3 3 0 0 1 17.5 15z"/><path d="M8 19h.01M12 19h.01M16 19h.01M10 21.5h.01M14 21.5h.01" stroke-width="2.6"/></symbol>
+      <symbol id="i-storm" viewBox="0 0 24 24"><path d="M17.5 15H8a4.5 4.5 0 1 1 1.2-8.84A5.5 5.5 0 0 1 20 9.5 3 3 0 0 1 17.5 15z"/><path d="m13 15-2.5 3.5h3L11 22"/></symbol>
+      <symbol id="i-fog" viewBox="0 0 24 24"><path d="M4 9h16M3 13h18M5 17h14M7 21h10"/></symbol>
+      <symbol id="i-camera" viewBox="0 0 24 24"><path d="M3 8.5A1.5 1.5 0 0 1 4.5 7h2.3l1.5-2.5h7.4L17.2 7h2.3A1.5 1.5 0 0 1 21 8.5v10a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5v-10z"/><circle cx="12" cy="13" r="3.5"/></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7 10l5 5 5-5M4 20h16"/></symbol>
+      <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V4M7 9l5-5 5 5M4 20h16"/></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+      <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".8" fill="currentColor"/></symbol>
+      <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></symbol>
+      <symbol id="i-depth" viewBox="0 0 24 24"><path d="M3 5c2 0 2-1.5 4-1.5S9 5 11 5s2-1.5 4-1.5S17 5 19 5s2-1.5 2-1.5"/><path d="M12 8v12M8.5 16.5 12 20l3.5-3.5"/></symbol>
+      <symbol id="i-share" viewBox="0 0 24 24"><path d="M12 3v12M7.5 7.5 12 3l4.5 4.5"/><path d="M5 12v7.5A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V12"/></symbol>
+    </defs>
+  </svg>
 
-  <main>
-    <!-- KARTE -->
-    <section id="view-map" class="view active">
-      <div id="map"></div>
-      <div class="map-tools">
-        <button id="btnLocate" class="round" title="Mein Standort" aria-label="Mein Standort">◎</button>
-      </div>
-      <div class="map-filter">
-        <label><input type="checkbox" id="showCatches" checked> Fänge</label>
-        <label><input type="checkbox" id="showSpots" checked> Spots</label>
-      </div>
-      <button id="fabCatch" class="fab">＋ Fang</button>
-    </section>
+  <div class="app">
+    <header class="appbar">
+      <button id="waterSwitch" class="water-switch" aria-haspopup="dialog">
+        <span class="ws-kicker" id="wsKicker">Gewässer</span>
+        <span class="ws-title"><span id="wsName">Gewässer wählen</span><svg class="ic sm"><use href="#i-chev"/></svg></span>
+      </button>
+      <span id="netStatus" class="pill pill-warn" hidden>Offline</span>
+      <button class="icon-btn" id="btnSettings" aria-label="Einstellungen"><svg class="ic"><use href="#i-sliders"/></svg></button>
+    </header>
 
-    <!-- FÄNGE -->
-    <section id="view-catches" class="view">
-      <div class="toolbar">
-        <input id="catchSearch" type="search" placeholder="Suchen (Fischart, Köder, Notiz …)">
-        <button class="btn primary" data-action="new-catch">＋ Fang</button>
-      </div>
-      <div id="catchList" class="list"></div>
-    </section>
+    <main>
+      <section id="view-home" class="view"><div id="home"></div></section>
 
-    <!-- SPOTS -->
-    <section id="view-spots" class="view">
-      <div class="toolbar">
-        <input id="spotSearch" type="search" placeholder="Spots durchsuchen">
-        <button class="btn primary" data-action="new-spot">＋ Spot</button>
-      </div>
-      <p class="hint">Tipp: Auf die Karte tippen, um einen Spot genau dort zu speichern – oder mit „🔎 Angelplätze hier suchen“ öffentliche Plätze aus OpenStreetMap finden.</p>
-      <div id="spotList" class="list"></div>
-    </section>
-
-    <!-- BEISSZEITEN -->
-    <section id="view-times" class="view">
-      <div class="card">
-        <div class="row between">
-          <h2>Beißzeiten</h2>
-          <input id="timesDate" type="date">
+      <section id="view-map" class="view view-map">
+        <div id="map"></div>
+        <div class="map-top">
+          <div class="chips" id="mapChips">
+            <button class="chip on" data-layer="catches"><svg class="ic xs"><use href="#i-fish"/></svg>Fänge</button>
+            <button class="chip on" data-layer="spots"><svg class="ic xs"><use href="#i-pin"/></svg>Spots</button>
+            <button class="chip" data-layer="public"><svg class="ic xs"><use href="#i-search"/></svg>Angelplätze OSM</button>
+          </div>
         </div>
-        <select id="timesPlace" aria-label="Ort für Beißzeiten"></select>
-        <div id="todayRating"></div>
-        <div id="timeline" class="timeline"></div>
-        <div id="periods"></div>
-      </div>
-      <div class="card">
-        <h3>Wetter</h3>
-        <div id="weather"><p class="muted">Wird geladen …</p></div>
-      </div>
-      <div class="card">
-        <h3>Nächste 7 Tage</h3>
-        <div id="week" class="week"></div>
-      </div>
-      <div class="card">
-        <h3>Deine besten Zeiten</h3>
-        <p class="muted small">Aus deinen eingetragenen Fängen berechnet.</p>
-        <div id="myHours"></div>
-      </div>
-      <p class="hint">Die Beißzeiten basieren auf der Solunar-Theorie (Mondstand, Mondphase, Sonnenauf- und -untergang). Sie sind ein Anhaltspunkt – Wetter, Wassertemperatur und Gewässer zählen genauso.</p>
-    </section>
-
-    <!-- TECHNIKEN -->
-    <section id="view-guide" class="view">
-      <div class="toolbar">
-        <input id="guideSearch" type="search" placeholder="Fischart oder Technik suchen">
-      </div>
-      <div id="guide"></div>
-    </section>
-
-    <!-- STATISTIK -->
-    <section id="view-stats" class="view">
-      <div id="stats"></div>
-      <div class="card">
-        <h3>Daten</h3>
-        <p class="muted small">Alle Daten liegen nur auf diesem Gerät. Erstelle regelmäßig ein Backup.</p>
-        <div class="row wrap">
-          <button class="btn" id="btnExport">Backup exportieren</button>
-          <label class="btn">Backup importieren<input type="file" id="importFile" accept="application/json" hidden></label>
+        <div class="map-side">
+          <button class="fab-sm" id="btnLayers" aria-label="Kartenebenen"><svg class="ic"><use href="#i-layers"/></svg></button>
+          <button class="fab-sm" id="btnLocate" aria-label="Mein Standort"><svg class="ic"><use href="#i-locate"/></svg></button>
+          <button class="fab-sm" id="btnFitWater" aria-label="Gewässer zeigen"><svg class="ic"><use href="#i-water"/></svg></button>
         </div>
-        <div id="installBox" hidden>
-          <p class="small">Fish Tracker als App installieren:</p>
-          <button class="btn primary" id="btnInstall">Auf Startbildschirm installieren</button>
+        <button class="fab" data-action="new-catch"><svg class="ic"><use href="#i-plus"/></svg>Fang</button>
+      </section>
+
+      <section id="view-catches" class="view">
+        <div class="page-head">
+          <h1>Fänge</h1>
+          <button class="btn btn-primary" data-action="new-catch"><svg class="ic sm"><use href="#i-plus"/></svg>Neu</button>
         </div>
-        <p class="muted small" id="iosHint" hidden>iPhone/iPad: In Safari auf „Teilen“ tippen → „Zum Home-Bildschirm“.</p>
-      </div>
-    </section>
-  </main>
+        <div class="segmented" id="catchSeg">
+          <button class="on" data-seg="list">Liste</button>
+          <button data-seg="stats">Statistik</button>
+        </div>
+        <div id="catchListWrap">
+          <label class="search"><svg class="ic sm"><use href="#i-search"/></svg><input id="catchSearch" type="search" placeholder="Fischart, Köder, Spot …"></label>
+          <div id="catchList" class="list"></div>
+          <div id="catchEmpty"></div>
+        </div>
+        <div id="stats" hidden></div>
+      </section>
 
-  <nav class="tabbar">
-    <button data-view="map" class="active"><span>🗺️</span>Karte</button>
-    <button data-view="catches"><span>🐟</span>Fänge</button>
-    <button data-view="spots"><span>📍</span>Spots</button>
-    <button data-view="times"><span>🌙</span>Zeiten</button>
-    <button data-view="guide"><span>🎣</span>Technik</button>
-    <button data-view="stats"><span>📊</span>Statistik</button>
-  </nav>
+      <section id="view-forecast" class="view"><div id="forecast"></div></section>
 
-  <!-- Formular-Dialog -->
+      <section id="view-guide" class="view">
+        <div class="page-head"><h1>Wissen</h1></div>
+        <div class="segmented" id="guideSeg">
+          <button class="on" data-seg="fish">Fischarten</button>
+          <button data-seg="tech">Techniken</button>
+          <button data-seg="rules">Regeln</button>
+        </div>
+        <label class="search" id="guideSearchWrap"><svg class="ic sm"><use href="#i-search"/></svg><input id="guideSearch" type="search" placeholder="Suchen"></label>
+        <div id="guide"></div>
+      </section>
+    </main>
+
+    <nav class="tabbar">
+      <button data-view="home"><svg class="ic"><use href="#i-water"/></svg><span>Gewässer</span></button>
+      <button data-view="map"><svg class="ic"><use href="#i-map"/></svg><span>Karte</span></button>
+      <button data-view="catches"><svg class="ic"><use href="#i-fish"/></svg><span>Fänge</span></button>
+      <button data-view="forecast"><svg class="ic"><use href="#i-cloud"/></svg><span>Prognose</span></button>
+      <button data-view="guide"><svg class="ic"><use href="#i-book"/></svg><span>Wissen</span></button>
+    </nav>
+  </div>
+
   <dialog id="sheet">
     <form id="sheetForm" method="dialog">
+      <div class="sheet-grab"></div>
       <div class="sheet-head">
         <h2 id="sheetTitle"></h2>
-        <button type="button" class="icon" data-close aria-label="Schließen">✕</button>
+        <button type="button" class="icon-btn" data-close aria-label="Schliessen"><svg class="ic"><use href="#i-x"/></svg></button>
       </div>
-      <div id="sheetBody"></div>
-      <div class="sheet-foot">
-        <button type="button" class="btn danger" id="sheetDelete" hidden>Löschen</button>
+      <div id="sheetBody" class="sheet-body"></div>
+      <div class="sheet-foot" id="sheetFoot">
+        <button type="button" class="btn btn-ghost-danger" id="sheetDelete" hidden><svg class="ic sm"><use href="#i-trash"/></svg>Löschen</button>
         <span class="grow"></span>
         <button type="button" class="btn" data-close>Abbrechen</button>
-        <button type="submit" class="btn primary">Speichern</button>
+        <button type="submit" class="btn btn-primary" id="sheetSubmit">Speichern</button>
       </div>
     </form>
   </dialog>
