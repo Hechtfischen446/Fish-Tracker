@@ -1,12 +1,12 @@
 /* Service Worker: App offline nutzbar machen, angesehene Kartenkacheln speichern. */
-const VERSION = "v6";
+const VERSION = "v7";
 const APP_CACHE = `ft-app-${VERSION}`;
 const TILE_CACHE = "ft-tiles";
 const MAX_TILES = 4000;
 
 const APP_FILES = [
-  "./", "index.html", "styles.css?v=6", "app.js?v=6", "data.js?v=6", "manifest.webmanifest",
-  "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png",
+  "./", "index.html", "styles.css?v=7", "app.js?v=7", "data.js?v=7", "manifest.webmanifest",
+  "icons/favicon-32.png", "icons/apple-touch-icon.png", "icons/icon-192.png", "icons/icon-512.png",
   "data/stations.json", "data/lakes.json",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js",
