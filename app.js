@@ -97,6 +97,8 @@
     day: new Date(),
     place: "water",
     catchSeg: "list",
+    wxOpen: store.get("wxOpen", false),
+    wxDetail: store.get("wxDetail", false),
     guideSeg: "fish",
     stations: null,
     lakes: null,
@@ -321,8 +323,8 @@
     return cached(key, 20 * 60e3, async () => {
       const base = `https://api.open-meteo.com/v1/forecast?latitude=${ref.lat.toFixed(4)}&longitude=${ref.lng.toFixed(4)}` +
         "&current=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m,wind_gusts_10m,cloud_cover,surface_pressure,precipitation" +
-        "&hourly=temperature_2m,precipitation,wind_speed_10m,wind_gusts_10m,surface_pressure,weather_code" +
-        "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_gusts_10m_max" +
+        "&hourly=temperature_2m,precipitation,precipitation_probability,wind_speed_10m,wind_gusts_10m,surface_pressure,weather_code" +
+        "&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,sunshine_duration" +
         "&past_days=1&forecast_days=7&timezone=Europe%2FZurich";
       let d = await fetchJSON(base + "&models=meteoswiss_icon_seamless").catch(() => null);
       let model = "MeteoSwiss ICON-CH";
@@ -330,11 +332,14 @@
       if (d.error) throw new Error(d.reason);
       d.model = model;
       // Nach dem Horizont von ICON-CH (ca. 5 Tage) mit dem Standardmodell auffüllen
-      if (model !== "Open-Meteo" && d.daily.temperature_2m_max.some((v) => v == null)) {
+      const gaps = (o) => Object.values(o).some((a) => Array.isArray(a) && a.some((v) => v == null));
+      if (model !== "Open-Meteo" && (gaps(d.daily) || gaps(d.hourly))) {
         const g = await fetchJSON(base).catch(() => null);
-        if (g?.daily) {
-          for (const k of Object.keys(d.daily)) if (Array.isArray(d.daily[k])) d.daily[k] = d.daily[k].map((v, i) => v ?? g.daily[k]?.[i] ?? null);
-          d.model += " + ECMWF";
+        if (g) {
+          const fill = (a, b) => { for (const k of Object.keys(a)) if (Array.isArray(a[k]) && Array.isArray(b?.[k])) a[k] = a[k].map((v, i) => v ?? b[k][i] ?? null); };
+          const late = d.daily.temperature_2m_max.some((v) => v == null);
+          fill(d.daily, g.daily); fill(d.hourly, g.hourly);
+          if (late) d.model += " + Open-Meteo";
         }
       }
       return d;
@@ -409,15 +414,19 @@
     const Y = (v) => m.t + (1 - (v - lo) / (hi - lo)) * (H - m.t - m.b);
     let s = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img">`;
     ticks.forEach((v) => { s += `<line class="grid" x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}"/><text class="axis-t" x="${m.l - 6}" y="${Y(v) + 3.5}" text-anchor="end">${nf(v, 1)}</text>`; });
-    // Tagesmarken
-    const d = new Date(x0); d.setHours(24, 0, 0, 0);
-    for (let t = +d; t < x1; t += 864e5) {
-      s += `<line class="grid" x1="${X(t)}" x2="${X(t)}" y1="${m.t}" y2="${H - m.b}" stroke-dasharray="2 3"/>`;
-      if (X(t) < W - 30) s += `<text class="axis-t" x="${X(t) + 4}" y="${H - 6}">${new Date(t).toLocaleDateString("de-CH", { weekday: "short" })}</text>`;
+    // Zeitachse: Tagesmarken, bei kurzen Zeiträumen zusätzlich Uhrzeiten
+    const short = x1 - x0 <= 50 * 3600e3;
+    const d = new Date(x0); d.setMinutes(0, 0, 0); d.setHours(Math.ceil(d.getHours() / 6) * 6);
+    for (let t = +d; t <= x1; t += 6 * 3600e3) {
+      const dt = new Date(t), midnight = dt.getHours() === 0;
+      if (!midnight && !short) continue;
+      if (midnight) s += `<line class="grid" x1="${X(t)}" x2="${X(t)}" y1="${m.t}" y2="${H - m.b}" stroke-dasharray="2 3"/>`;
+      const label = midnight ? dt.toLocaleDateString("de-CH", { weekday: "short" }) : `${pad(dt.getHours())}:00`;
+      if (X(t) > m.l + 4 && X(t) < W - 30) s += `<text class="axis-t" x="${X(t)}" y="${H - 6}" text-anchor="middle">${label}</text>`;
     }
     if (type === "bar") {
       const bw = Math.max(2, ((W - m.l - m.r) / pts.length) - 2);
-      pts.forEach(([t, v]) => { if (v > 0) { const h = Math.max(1, Y(lo) - Y(v)); s += `<rect class="bar" x="${X(t) - bw / 2}" y="${Y(lo) - h}" width="${bw}" height="${h}" rx="${Math.min(2, bw / 2)}"/>`; } });
+      pts.forEach(([t, v]) => { if (v > 0) { const h = Math.max(1, Y(lo) - Y(v)); s += `<rect class="bar" x="${Math.min(Math.max(X(t) - bw / 2, m.l), W - m.r - bw)}" y="${Y(lo) - h}" width="${bw}" height="${h}" rx="${Math.min(2, bw / 2)}"/>`; } });
     } else {
       const path = pts.map(([t, v], i) => `${i ? "L" : "M"}${X(t).toFixed(1)},${Y(v).toFixed(1)}`).join("");
       s += `<path class="area" d="${path}L${X(x1)},${Y(lo)}L${X(x0)},${Y(lo)}Z"/><path class="series" d="${path}"/>`;
@@ -1038,6 +1047,9 @@
         ${tile("gauge", "Luftdruck", null, "", "tPress")}
       </div>
 
+      <button type="button" class="btn toggle-btn ${state.wxOpen ? "open" : ""}" id="btnWxDays"><span class="row">${ic("cloud-sun", "sm")}Wetter der nächsten Tage</span>${ic("chev", "sm")}</button>
+      <div class="card toggle-panel" id="wxDays" ${state.wxOpen ? "" : "hidden"}><p class="faint small">Wird geladen …</p></div>
+
       ${ld ? `<div class="card">
         <div class="card-head"><h3>Wassertemperatur nach Tiefe</h3><span class="xsmall faint">${esc(new Date(ld.time).toLocaleString("de-CH", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }))}</span></div>
         <div class="chart" id="chProfile"></div>
@@ -1126,7 +1138,25 @@
     return `<div class="row wrap">${sp ? `<span class="tag accent">Häufigste Art: ${esc(sp[0])}</span>` : ""}${bait ? `<span class="tag">Köder: ${esc(bait[0])}</span>` : ""}${tech ? `<span class="tag">Technik: ${esc(tech[0])}</span>` : ""}${cs.length >= 3 ? `<span class="tag">Beste Zeit: ${pad(bh * 2)}–${pad(bh * 2 + 2)} Uhr</span>` : ""}</div>`;
   }
 
+  function fillWxDays(w) {
+    const el = $("#wxDays");
+    if (!el || el.hidden) return;
+    if (!navigator.onLine) { el.innerHTML = `<p class="muted small">Offline – Wetterdaten nicht verfügbar.</p>`; return; }
+    forecast({ lat: w.lat, lng: w.lng }).then((fc) => {
+      if (activeWater() !== w || !$("#wxDays")) return;
+      $("#wxDays").innerHTML = weatherDaysHtml(fc) + `<div class="row" style="justify-content:space-between;margin-top:10px"><span class="source" style="margin:0">${esc(fc.model)}</span><button type="button" class="link-btn" data-action="goto" data-view="forecast">Stündlich</button></div>`;
+    }).catch(() => { if ($("#wxDays")) $("#wxDays").innerHTML = `<p class="muted small">Wetter konnte nicht geladen werden.</p>`; });
+  }
+
   async function fillHomeLive(w) {
+    $("#btnWxDays")?.addEventListener("click", () => {
+      state.wxOpen = !state.wxOpen;
+      store.set("wxOpen", state.wxOpen);
+      $("#btnWxDays").classList.toggle("open", state.wxOpen);
+      $("#wxDays").hidden = !state.wxOpen;
+      fillWxDays(w);
+    });
+    fillWxDays(w);
     const c = catalogOf(w);
     const ld = lakeData(w);
     // Hydrodaten
@@ -1215,7 +1245,9 @@
         ${sol.periods.map((p) => `<div class="period"><span class="when">${hm(p.from)} – ${hm(p.to)}</span><span class="row" style="gap:6px"><span class="faint small">${p.label}</span><span class="pill ${p.kind === "major" ? "pill-good" : "pill-warn"}">${p.kind === "major" ? "Haupt" : "Neben"}</span></span></div>`).join("")}
       </div>
 
-      <div class="card"><div class="card-head"><h3>7 Tage</h3><span class="xsmall faint" id="fcModel"></span></div><div class="days" id="days"></div></div>
+      <div class="card"><div class="card-head"><h3>7 Tage</h3><span class="xsmall faint" id="fcModel"></span></div><div class="days" id="days"></div>
+        <button type="button" class="btn btn-block" id="btnWxDetail" style="margin-top:12px">${ic("cloud-sun", "sm")}${state.wxDetail ? "Wetterdetails ausblenden" : "Wetterdetails für alle Tage"}</button>
+        <div id="wxDetail" ${state.wxDetail ? "" : "hidden"} style="margin-top:8px"></div></div>
 
       <div class="card">
         <div class="card-head"><h3>Gemessen · MeteoSwiss</h3><span class="xsmall faint" id="mStation"></span></div>
@@ -1223,7 +1255,7 @@
       </div>
 
       <div class="card" id="fcCharts">
-        <h3>Nächste 48 Stunden</h3>
+        <h3>${isToday ? "Nächste 48 Stunden" : "Verlauf · " + esc(d.toLocaleDateString("de-CH", { weekday: "long", day: "numeric", month: "long" }))}</h3>
         <div class="chart-title"><b>Temperatur</b><span>°C</span></div><div class="chart" id="chTemp"></div>
         <div class="chart-title"><b>Niederschlag</b><span>mm pro Stunde</span></div><div class="chart" id="chRain"></div>
         <div class="chart-title"><b>Wind</b><span>km/h, Mittelwind</span></div><div class="chart" id="chWind"></div>
@@ -1233,6 +1265,12 @@
 
       <div class="card" id="fcTips" hidden><h3>Einschätzung</h3><div id="tipsBody"></div></div>`;
 
+    $("#btnWxDetail").addEventListener("click", () => {
+      state.wxDetail = !state.wxDetail;
+      store.set("wxDetail", state.wxDetail);
+      $("#wxDetail").hidden = !state.wxDetail;
+      $("#btnWxDetail").innerHTML = `${ic("cloud-sun", "sm")}${state.wxDetail ? "Wetterdetails ausblenden" : "Wetterdetails für alle Tage"}`;
+    });
     $("#placeChips").addEventListener("click", (e) => { const b = e.target.closest(".chip"); if (!b) return; state.place = b.dataset.place; if (state.place === "me" && !state.pos) locate(false).then(renderForecast); else renderForecast(); });
 
     // 7 Tage: Solunar sofort, Wetter danach
@@ -1260,8 +1298,11 @@
       if (currentView !== "forecast") return;
       renderDays(fc);
       $("#fcModel").textContent = fc.model;
+      const wd = $("#wxDetail");
+      if (wd) wd.innerHTML = weatherDaysHtml(fc, toDateKey(d));
       const h = fc.hourly, now = Date.now();
-      const idx = h.time.map((t, i) => [Date.parse(t), i]).filter(([t]) => t >= now - 3 * 3600e3 && t <= now + 48 * 3600e3);
+      const from = isToday ? now - 3 * 3600e3 : +sol.day, to = isToday ? now + 48 * 3600e3 : +sol.day + 24 * 3600e3;
+      const idx = h.time.map((t, i) => [Date.parse(t), i]).filter(([t]) => t >= from && t <= to);
       const ser = (k) => idx.map(([t, i]) => [t, h[k][i]]);
       timeChart($("#chTemp"), { data: ser("temperature_2m"), unit: "°C", digits: 1 });
       timeChart($("#chRain"), { data: ser("precipitation"), unit: "mm", digits: 1, type: "bar", height: 90 });
@@ -1280,6 +1321,25 @@
       setTile("mPress", m.qff != null ? `${nf(m.qff, 0)}<small>hPa</small>` : null, "Meeresniveau (QFF)");
       setTile("mRain", `${nf(m.rain, 1)}<small>mm</small>`, "letzte 10 Minuten");
     }).catch(() => ["mAir", "mWind", "mPress", "mRain"].forEach((id) => setTile(id, null, "Nicht erreichbar")));
+  }
+
+  // Tageswetter-Liste (Heute + folgende Tage)
+  function weatherDaysHtml(fc, selKey) {
+    const D = fc.daily, today = toDateKey(new Date());
+    return D.time.map((k, j) => {
+      if (k < today || D.temperature_2m_max[j] == null) return "";
+      const dd = new Date(k + "T12:00");
+      const [wi, wt] = WMO(D.weather_code[j]);
+      const rain = D.precipitation_sum[j], prob = D.precipitation_probability_max?.[j];
+      const sun = D.sunshine_duration?.[j];
+      return `<div class="wx-row" ${k === selKey ? 'style="background:var(--accent-soft);margin:0 -10px;padding-left:10px;padding-right:10px;border-radius:10px"' : ""}>
+        <div><div class="dname">${k === today ? "Heute" : dd.toLocaleDateString("de-CH", { weekday: "short" })}</div><div class="day-sub">${dd.getDate()}. ${MONTHS[dd.getMonth()]}</div></div>
+        ${ic(wi)}
+        <div class="desc"><b>${esc(wt)}</b>
+          <div class="day-sub">${ic("rain", "xs")} ${nf(rain, 1)} mm${prob != null ? ` · ${nf(prob, 0)} %` : ""}${sun != null ? ` · ${ic("sun", "xs")} ${nf(sun / 3600, 1)} h` : ""}</div>
+          <div class="day-sub">${ic("wind", "xs")} ${nf(D.wind_speed_10m_max?.[j], 0)} km/h ${dirName(D.wind_direction_10m_dominant?.[j])} · Böen ${nf(D.wind_gusts_10m_max[j], 0)}</div></div>
+        <div class="temps"><b>${nf(D.temperature_2m_max[j], 0)}°</b> ${nf(D.temperature_2m_min[j], 0)}°</div></div>`;
+    }).join("");
   }
 
   function weatherTips(fc, w) {

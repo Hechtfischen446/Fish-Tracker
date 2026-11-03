@@ -1,11 +1,11 @@
 /* Service Worker: App offline nutzbar machen, angesehene Kartenkacheln speichern. */
-const VERSION = "v2";
+const VERSION = "v4";
 const APP_CACHE = `ft-app-${VERSION}`;
 const TILE_CACHE = "ft-tiles";
 const MAX_TILES = 4000;
 
 const APP_FILES = [
-  "./", "index.html", "styles.css", "app.js", "data.js", "manifest.webmanifest",
+  "./", "index.html", "styles.css?v=4", "app.js?v=4", "data.js?v=4", "manifest.webmanifest",
   "icons/icon.svg", "icons/icon-192.png", "icons/icon-512.png",
   "data/stations.json", "data/lakes.json",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
@@ -49,14 +49,15 @@ self.addEventListener("fetch", (e) => {
   }
   if (isLive(url)) return; // Live-Daten immer direkt vom Netz
 
-  // App-Dateien: Netzwerk zuerst (Updates), Fallback Cache
+  // App-Dateien: Netzwerk zuerst und am Browser-Cache vorbei (Updates sofort sichtbar), Fallback Cache
+  const sameOrigin = url.origin === location.origin;
   e.respondWith(
-    fetch(req).then((r) => {
+    (sameOrigin ? fetch(req.url, { cache: "no-cache", credentials: "same-origin" }) : fetch(req)).then((r) => {
       if (r.ok && (url.origin === location.origin || url.hostname === "unpkg.com")) {
         const copy = r.clone();
         caches.open(APP_CACHE).then((c) => c.put(req, copy));
       }
       return r;
-    }).catch(() => caches.match(req, { ignoreSearch: true }).then((r) => r || (req.mode === "navigate" ? caches.match("index.html") : undefined))),
+    }).catch(() => caches.match(req).then((r) => r || caches.match(req, { ignoreSearch: true })).then((r) => r || (req.mode === "navigate" ? caches.match("index.html") : undefined))),
   );
 });
