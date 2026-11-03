@@ -419,3 +419,166 @@ html.standalone .tabbar { --tab-pad: max(calc(env(safe-area-inset-bottom) - 8px)
 .fish-photo img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 12px; display: block; background: var(--surface-2); }
 .fish-photo figcaption { font-size: .7rem; color: var(--ink-3); margin-top: 5px; }
 .fish-photo figcaption a { color: var(--ink-3); }
+
+/* ═══════════════════════════════════════════════════════════════
+   Fischerglück – Design 2.0 (nur Gestaltung, Aufbau unverändert)
+   Farben inspiriert vom Hecht-Icon: Seewasser-Petrol, Schilfgrün, Gold
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+  --bg: #eef3f2;
+  --surface: #ffffff;
+  --surface-2: #eef3f3;
+  --ink: #0d1f24;
+  --ink-2: #48606a;
+  --ink-3: #82959d;
+  --line: #e1e9ea;
+  --line-strong: #cfdbdd;
+  --accent: #0a7c86;
+  --accent-2: #0c5d78;
+  --accent-ink: #ffffff;
+  --accent-soft: #dff1f1;
+  --gold: #e2a03f;
+  --gold-soft: #fbefd9;
+  --reed: #6f9a35;
+  --lake-1: #0b5f73;
+  --lake-2: #0a7c86;
+  --lake-3: #13a39c;
+  --shadow-1: 0 1px 2px rgba(13, 31, 36, .05), 0 4px 14px rgba(13, 31, 36, .06);
+  --shadow-2: 0 2px 6px rgba(13, 31, 36, .06), 0 12px 32px rgba(13, 31, 36, .10);
+  --r-lg: 20px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #08141a;
+    --surface: #10212a;
+    --surface-2: #162c36;
+    --ink: #e7f1f2;
+    --ink-2: #a3b8bf;
+    --ink-3: #6f878f;
+    --line: #1d333d;
+    --line-strong: #29434e;
+    --accent: #3fc1c0;
+    --accent-2: #2aa3b8;
+    --accent-ink: #04262b;
+    --accent-soft: #123a40;
+    --gold: #f0b65a;
+    --gold-soft: #3a2c13;
+    --lake-1: #0b3d4d;
+    --lake-2: #0b5864;
+    --lake-3: #0f7470;
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 14px rgba(0, 0, 0, .25);
+    --shadow-2: 0 2px 6px rgba(0, 0, 0, .35), 0 12px 32px rgba(0, 0, 0, .35);
+  }
+}
+
+body { background: var(--surface); }
+.app { background: radial-gradient(120% 60% at 100% 0%, color-mix(in srgb, var(--lake-3) 10%, transparent), transparent 60%), var(--bg); }
+
+/* Kopfzeile */
+.appbar { background: transparent; border-bottom: 0; }
+.ws-kicker { color: var(--accent); letter-spacing: .09em; }
+.ws-title { font-size: 1.3rem; letter-spacing: -.02em; }
+.ws-title .ic { color: var(--accent); }
+.icon-btn { background: var(--surface); box-shadow: var(--shadow-1); color: var(--ink); }
+
+/* Seitentitel */
+h1 { letter-spacing: -.03em; }
+.page-head h1 { font-size: 2rem; background: linear-gradient(90deg, var(--ink) 0%, var(--accent-2) 120%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+h3 { color: var(--ink-3); display: flex; align-items: center; gap: 8px; }
+.card > h3::before, .card-head h3::before, .section-label::before { content: ""; width: 4px; height: 13px; border-radius: 4px; background: linear-gradient(var(--lake-3), var(--accent-2)); flex-shrink: 0; }
+.section-label { display: flex; align-items: center; gap: 8px; }
+
+/* Karten & Listen */
+.card, .list, .tile, .acc { border: 0; box-shadow: var(--shadow-1); }
+@media (prefers-color-scheme: dark) { .card, .list, .tile, .acc { border: 1px solid var(--line); } }
+.card { border-radius: var(--r-lg); }
+.li:hover { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+.li .thumb, .fish-thumb { border-radius: 14px; }
+.li .thumb:not(img) { background: var(--accent-soft); color: var(--accent); }
+
+/* Blickfang: Gewässer-Karte als Seewasser */
+.hero {
+  position: relative; overflow: hidden; color: #fff;
+  background:
+    radial-gradient(90% 70% at 0% 0%, rgba(255, 255, 255, .16), transparent 60%),
+    linear-gradient(150deg, var(--lake-3) 0%, var(--lake-2) 45%, var(--lake-1) 100%);
+  box-shadow: var(--shadow-2);
+  padding-bottom: 40px;
+}
+.hero::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 34px; pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 46' preserveAspectRatio='none'%3E%3Cpath d='M0 20c40 0 60-14 100-14s60 14 100 14 60-14 100-14 60 14 100 14v26H0z' fill='%23ffffff' fill-opacity='.10'/%3E%3Cpath d='M0 30c40 0 60-12 100-12s60 12 100 12 60-12 100-12 60 12 100 12v16H0z' fill='%23ffffff' fill-opacity='.14'/%3E%3C/svg%3E") bottom / 100% 100% no-repeat;
+}
+.hero h1, .hero .sub, .hero p { color: #fff; }
+.hero .sub { opacity: .9; }
+.hero .btn { background: rgba(255, 255, 255, .16); border-color: rgba(255, 255, 255, .35); color: #fff; }
+.hero .btn-primary { background: #fff; color: var(--lake-1); border-color: #fff; }
+.hero .badge-ic { background: rgba(255, 255, 255, .18); color: #fff; }
+.hero .facts { background: transparent; gap: 8px; }
+.hero .facts > div { background: rgba(255, 255, 255, .13); border-radius: 14px; }
+.hero .facts .k { color: rgba(255, 255, 255, .75); }
+.hero .facts .v, .hero .facts .v small { color: #fff; }
+.hero .insight { background: rgba(4, 30, 38, .28); color: #fff; border: 1px solid rgba(255, 255, 255, .14); }
+.hero .insight .ic { color: var(--gold); }
+.hero .insight b { color: #fff; }
+
+/* Kennzahl-Kacheln mit Icon-Plakette */
+.tile { border-radius: 18px; }
+.tile .k { text-transform: none; letter-spacing: 0; font-size: .78rem; color: var(--ink-2); }
+.tile .k .ic { width: 28px; height: 28px; padding: 6px; border-radius: 9px; background: var(--accent-soft); color: var(--accent); }
+.tile:nth-child(2) .k .ic { background: var(--gold-soft); color: var(--gold); }
+.tile:nth-child(4) .k .ic, .tile:nth-child(5) .k .ic { background: color-mix(in srgb, var(--reed) 16%, var(--surface)); color: var(--reed); }
+.tile .v { font-size: 1.7rem; margin-top: 10px; }
+.tile .v small { color: var(--ink-3); }
+
+/* Knöpfe */
+.btn { border-radius: 14px; }
+.btn-primary { background: linear-gradient(135deg, var(--lake-3), var(--accent-2)); border: 0; box-shadow: 0 6px 16px color-mix(in srgb, var(--accent) 32%, transparent); }
+.btn-primary:hover { filter: brightness(1.05); background: linear-gradient(135deg, var(--lake-3), var(--accent-2)); }
+.toggle-btn { background: var(--surface); box-shadow: var(--shadow-1); border: 0; }
+.link-btn { background: var(--accent-soft); padding: 5px 11px; border-radius: 99px; font-size: .8rem; }
+.fab { background: linear-gradient(135deg, var(--gold), #d6852a); color: #2b1803; border-radius: 18px; box-shadow: 0 10px 26px rgba(214, 133, 42, .45); }
+
+/* Chips & Segmente */
+.chip.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.map-top .chip.on { border-color: var(--accent); }
+.segmented { background: color-mix(in srgb, var(--accent) 8%, var(--surface-2)); border-radius: 14px; }
+.segmented button { border-radius: 11px; }
+.segmented button.on { color: var(--accent-2); box-shadow: var(--shadow-1); }
+.search { background: var(--surface); box-shadow: var(--shadow-1); border-radius: 14px; }
+.tag.accent { background: var(--accent-soft); color: var(--accent-2); }
+.pill-accent { background: var(--accent-soft); color: var(--accent-2); }
+
+/* Beissindex */
+.score-ring { width: 84px; height: 84px; background: conic-gradient(var(--sc, var(--accent)) calc(var(--p) * 1%), color-mix(in srgb, var(--accent) 10%, var(--surface-2)) 0); box-shadow: var(--shadow-1); }
+.score-ring > span { width: 68px; height: 68px; font-size: 1.6rem; }
+.timeline { border-radius: 12px; }
+.insight { border-radius: 16px; }
+.insight .ic { color: var(--accent); }
+.pdetail .when { font-size: 1.02rem; }
+
+/* Wissen */
+.fish-photo img { border-radius: 16px; box-shadow: var(--shadow-1); }
+.acc { border-radius: 20px; }
+.months span { border-radius: 6px; }
+
+/* Tab-Leiste mit markiertem aktivem Tab */
+.tabbar { background: var(--surface); border-top: 0; box-shadow: 0 -6px 24px rgba(13, 31, 36, .07); }
+.tabbar button { position: relative; }
+.tabbar button .ic { transition: transform .15s; }
+.tabbar button.active { color: var(--accent); }
+.tabbar button.active::before {
+  content: ""; position: absolute; top: 5px; width: 52px; height: 30px; border-radius: 99px;
+  background: var(--accent-soft); z-index: 0;
+}
+.tabbar button > * { position: relative; z-index: 1; }
+
+/* Karte */
+.fab-sm { border-radius: 15px; box-shadow: var(--shadow-2); }
+.mk-spot { background: linear-gradient(135deg, var(--lake-3), var(--accent-2)); }
+.mk-catch { background: linear-gradient(135deg, var(--gold), #d6852a); }
+
+/* Dialoge */
+dialog { border-radius: 26px 26px 0 0; }
+@media (min-width: 700px) { dialog { border-radius: 26px; } }
+.sheet-head h2 { font-size: 1.3rem; letter-spacing: -.02em; }
