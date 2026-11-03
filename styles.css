@@ -582,3 +582,182 @@ h3 { color: var(--ink-3); display: flex; align-items: center; gap: 8px; }
 dialog { border-radius: 26px 26px 0 0; }
 @media (min-width: 700px) { dialog { border-radius: 26px; } }
 .sheet-head h2 { font-size: 1.3rem; letter-spacing: -.02em; }
+
+/* ═══════════════════════════════════════════════════════════════
+   Fischerglück – Design 3.0 «Echolot»
+   Futuristischer Fischfinder-Look: Sonar, Tiefenlinien, Neon.
+   Nur Gestaltung – Aufbau und Funktionen unverändert.
+   ═══════════════════════════════════════════════════════════════ */
+:root {
+  --font-tech: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --bg: #e9f1f3;
+  --surface: #ffffff;
+  --surface-2: #edf4f6;
+  --ink: #071a22;
+  --ink-2: #3f5a66;
+  --ink-3: #7b919b;
+  --line: #dbe6ea;
+  --line-strong: #c6d6dc;
+  --accent: #0590a6;
+  --accent-2: #0a5f86;
+  --accent-soft: #dcf2f5;
+  --neon: #18d4e6;
+  --neon-2: #3df5b0;
+  --gold: #f2a93b;
+  --gold-soft: #fdf0da;
+  --reed: #59a83a;
+  --deep-1: #041621;
+  --deep-2: #062a3a;
+  --deep-3: #0a4458;
+  --glow: 0 0 0 1px rgba(24, 212, 230, .25), 0 8px 26px rgba(5, 144, 166, .22);
+  --shadow-1: 0 1px 2px rgba(7, 26, 34, .05), 0 6px 18px rgba(7, 26, 34, .07);
+  --shadow-2: 0 4px 12px rgba(7, 26, 34, .10), 0 18px 40px rgba(4, 22, 33, .22);
+  --contour: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='480' viewBox='0 0 480 480'%3E%3Cg fill='none' stroke='%230590a6' stroke-opacity='.07' stroke-width='1.2'%3E%3Cpath d='M240 60c90 0 170 60 170 150s-60 200-170 200S60 330 70 230 150 60 240 60z'/%3E%3Cpath d='M240 100c70 0 130 45 130 115s-45 155-130 155-140-60-132-135S170 100 240 100z'/%3E%3Cpath d='M242 140c50 0 92 32 92 82s-32 110-92 110-100-42-94-96 44-96 94-96z'/%3E%3Cpath d='M244 180c30 0 54 20 54 48s-20 64-54 64-58-24-54-56 24-56 54-56z'/%3E%3Cpath d='M-40 470c80-40 160-30 240 0s170 40 320-10'/%3E%3Cpath d='M-40 20c90 30 180 20 260-5s180-20 300 25'/%3E%3C/g%3E%3C/svg%3E");
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #030f16;
+    --surface: #08202b;
+    --surface-2: #0c2a37;
+    --ink: #e4f7fa;
+    --ink-2: #98b8c2;
+    --ink-3: #5f808b;
+    --line: #12333f;
+    --line-strong: #1b4555;
+    --accent: #1fd0e0;
+    --accent-2: #2bb3d6;
+    --accent-ink: #022028;
+    --accent-soft: #0b3a45;
+    --gold-soft: #3a2a10;
+    --contour: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='480' height='480' viewBox='0 0 480 480'%3E%3Cg fill='none' stroke='%2318d4e6' stroke-opacity='.06' stroke-width='1.2'%3E%3Cpath d='M240 60c90 0 170 60 170 150s-60 200-170 200S60 330 70 230 150 60 240 60z'/%3E%3Cpath d='M240 100c70 0 130 45 130 115s-45 155-130 155-140-60-132-135S170 100 240 100z'/%3E%3Cpath d='M242 140c50 0 92 32 92 82s-32 110-92 110-100-42-94-96 44-96 94-96z'/%3E%3Cpath d='M244 180c30 0 54 20 54 48s-20 64-54 64-58-24-54-56 24-56 54-56z'/%3E%3Cpath d='M-40 470c80-40 160-30 240 0s170 40 320-10'/%3E%3Cpath d='M-40 20c90 30 180 20 260-5s180-20 300 25'/%3E%3C/g%3E%3C/svg%3E");
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, .4), 0 6px 18px rgba(0, 0, 0, .35);
+    --shadow-2: 0 4px 12px rgba(0, 0, 0, .45), 0 18px 40px rgba(0, 0, 0, .5);
+  }
+}
+
+/* Hintergrund: Tiefenlinien wie auf einer Seekarte */
+.app {
+  background:
+    radial-gradient(90% 50% at 100% 0%, color-mix(in srgb, var(--neon) 12%, transparent), transparent 60%),
+    radial-gradient(70% 40% at 0% 100%, color-mix(in srgb, var(--accent-2) 8%, transparent), transparent 60%),
+    var(--contour) 0 0 / 480px 480px,
+    var(--bg);
+}
+
+/* Technische Schrift für Titel und Messwerte */
+h1, h2, .ws-title, .tile .v, .facts .v, .score-ring > span, .score-meta .t, .pdetail .when, .period .when,
+.day-row .dname, .day-row .temps b, .wx-row .temps b, .pidx, .chart-title b, .li .t, .fab, .tabbar button span {
+  font-family: var(--font-tech);
+}
+.tile .v, .facts .v, .score-ring > span { font-weight: 700; letter-spacing: -.01em; }
+
+/* Kopfzeile */
+.ws-kicker { color: var(--accent); font-family: var(--font-tech); letter-spacing: .16em; }
+.ws-kicker::before { content: "◉ "; color: var(--neon); text-shadow: 0 0 8px var(--neon); }
+.ws-title { font-weight: 700; }
+.icon-btn { border: 1px solid color-mix(in srgb, var(--neon) 30%, transparent); }
+
+/* Seitentitel & Abschnitte im HUD-Stil */
+.page-head h1 { background: linear-gradient(90deg, var(--ink) 10%, var(--accent) 110%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+h3 { font-family: var(--font-tech); letter-spacing: .14em; color: var(--ink-3); }
+.card > h3::before, .card-head h3::before, .section-label::before {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--neon); box-shadow: 0 0 0 3px color-mix(in srgb, var(--neon) 22%, transparent), 0 0 10px var(--neon);
+}
+
+/* Karten: Glas-Optik mit feiner Neon-Kante (ohne Weichzeichner) */
+.card, .list, .tile, .acc, .search, .toggle-btn {
+  background:
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    linear-gradient(135deg, color-mix(in srgb, var(--neon) 45%, transparent), transparent 40%, transparent 60%, color-mix(in srgb, var(--accent-2) 35%, transparent)) border-box;
+  border: 1px solid transparent;
+  box-shadow: var(--shadow-1);
+}
+
+/* Blickfang: Gewässer-Karte als Echolot-Display */
+.hero {
+  color: #e6fbff;
+  background:
+    radial-gradient(circle at 86% 18%, rgba(61, 245, 176, .10) 0 3px, transparent 4px),
+    radial-gradient(circle at 74% 34%, rgba(61, 245, 176, .55) 0 3px, transparent 4px),
+    radial-gradient(circle at 90% 44%, rgba(24, 212, 230, .55) 0 2.5px, transparent 3.5px),
+    repeating-radial-gradient(circle at 84% 22%, rgba(24, 212, 230, .14) 0 1px, transparent 1.5px 46px),
+    radial-gradient(120% 90% at 84% 22%, rgba(24, 212, 230, .14), transparent 55%),
+    linear-gradient(160deg, var(--deep-3) 0%, var(--deep-2) 45%, var(--deep-1) 100%);
+  border: 1px solid rgba(24, 212, 230, .35);
+  box-shadow: var(--shadow-2), inset 0 0 40px rgba(24, 212, 230, .08);
+}
+/* kreisender Sonar-Strahl */
+.hero::before {
+  content: ""; position: absolute; width: 520px; height: 520px; right: -170px; top: -150px; border-radius: 50%; pointer-events: none;
+  background: conic-gradient(from 0deg, rgba(24, 212, 230, .22), rgba(24, 212, 230, 0) 18%, transparent 100%);
+  animation: sonar-sweep 6s linear infinite;
+}
+@keyframes sonar-sweep { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .hero::before { animation: none; } }
+.hero > * { position: relative; z-index: 1; }
+.hero::after { opacity: .7; }
+.hero .facts > div { background: rgba(4, 22, 33, .45); border: 1px solid rgba(24, 212, 230, .28); }
+.hero .facts .k { color: rgba(152, 232, 242, .85); font-family: var(--font-tech); letter-spacing: .06em; text-transform: uppercase; font-size: .66rem; }
+.hero .facts .v { color: #fff; text-shadow: 0 0 14px rgba(24, 212, 230, .45); }
+.hero .insight { background: rgba(4, 22, 33, .55); border: 1px solid rgba(61, 245, 176, .3); }
+.hero .insight .ic { color: var(--neon-2); filter: drop-shadow(0 0 6px var(--neon-2)); }
+.hero .btn { background: rgba(24, 212, 230, .12); border-color: rgba(24, 212, 230, .5); }
+.hero .btn-primary { background: linear-gradient(135deg, var(--neon), var(--neon-2)); color: #032029; border: 0; box-shadow: 0 0 22px rgba(24, 212, 230, .45); }
+.hero .badge-ic { background: rgba(24, 212, 230, .16); color: var(--neon); box-shadow: 0 0 18px rgba(24, 212, 230, .3); }
+
+/* Kacheln wie Echolot-Anzeigen */
+.tile { position: relative; overflow: hidden; }
+.tile::after { content: ""; position: absolute; left: 14px; right: 14px; bottom: 0; height: 2px; border-radius: 2px; background: linear-gradient(90deg, var(--neon), transparent); opacity: .6; }
+.tile .k .ic { background: transparent; border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); color: var(--accent); box-shadow: 0 0 12px color-mix(in srgb, var(--neon) 20%, transparent); }
+.tile:nth-child(2) .k .ic { border-color: color-mix(in srgb, var(--gold) 55%, transparent); color: var(--gold); box-shadow: 0 0 12px color-mix(in srgb, var(--gold) 25%, transparent); background: transparent; }
+.tile:nth-child(4) .k .ic, .tile:nth-child(5) .k .ic { border-color: color-mix(in srgb, var(--reed) 55%, transparent); color: var(--reed); box-shadow: 0 0 12px color-mix(in srgb, var(--reed) 25%, transparent); background: transparent; }
+@media (prefers-color-scheme: dark) { .tile .v { text-shadow: 0 0 16px rgba(31, 208, 224, .25); } }
+
+/* Knöpfe mit Leuchten */
+.btn-primary, .btn-primary:hover { background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: var(--glow); }
+@media (prefers-color-scheme: dark) { .btn-primary, .btn-primary:hover { background: linear-gradient(135deg, var(--neon), var(--accent-2)); color: #022028; } }
+.fab { background: linear-gradient(135deg, #ffc35c, var(--gold) 50%, #e0801f); box-shadow: 0 0 0 1px rgba(255, 195, 92, .5), 0 10px 30px rgba(224, 128, 31, .5); }
+.fab-sm { border: 1px solid color-mix(in srgb, var(--neon) 30%, transparent); }
+.link-btn { border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); background: transparent; }
+
+/* Chips & Segmente */
+.chip { border-color: color-mix(in srgb, var(--accent) 30%, var(--line-strong)); }
+.chip.on { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; box-shadow: var(--glow); }
+@media (prefers-color-scheme: dark) { .chip.on { color: #022028; background: linear-gradient(135deg, var(--neon), var(--accent-2)); } }
+.segmented button.on { color: var(--accent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--neon) 35%, transparent), var(--shadow-1); }
+
+/* Beissindex: leuchtender Ring */
+.score-ring { box-shadow: 0 0 0 1px color-mix(in srgb, var(--neon) 25%, transparent), 0 0 24px color-mix(in srgb, var(--sc, var(--accent)) 40%, transparent); }
+.score-ring > span { font-size: 1.7rem; }
+.timeline { background: color-mix(in srgb, var(--accent) 6%, var(--surface-2)); border: 1px solid var(--line); }
+.timeline .seg.major { background: linear-gradient(90deg, #1fbf7a, var(--neon-2)); box-shadow: 0 0 10px rgba(61, 245, 176, .45); }
+.timeline .seg.minor { background: linear-gradient(90deg, #e39a2b, var(--gold)); box-shadow: 0 0 8px rgba(242, 169, 59, .4); }
+.timeline .now { background: var(--neon); box-shadow: 0 0 8px var(--neon); }
+.pidx { font-family: var(--font-tech); box-shadow: 0 0 10px rgba(0, 0, 0, .08); }
+.insight { border: 1px solid color-mix(in srgb, var(--neon) 30%, transparent); }
+
+/* Diagramme: leuchtende Linie wie auf dem Echolot */
+.chart .series { stroke: var(--accent); stroke-width: 2.2; filter: drop-shadow(0 0 4px color-mix(in srgb, var(--neon) 55%, transparent)); }
+.chart .area { fill: var(--neon); opacity: .09; }
+.chart .grid { stroke-dasharray: 2 4; }
+.chart .dot { fill: var(--neon); }
+.chart .tip { background: var(--deep-1); color: #e6fbff; border: 1px solid rgba(24, 212, 230, .5); box-shadow: 0 0 16px rgba(24, 212, 230, .3); font-family: var(--font-tech); }
+.chart .thermo-l { stroke: var(--gold); }
+
+/* Wissen */
+.months span.l3 { background: linear-gradient(180deg, #23c483, #149b63); box-shadow: 0 0 8px rgba(35, 196, 131, .35); }
+.fish-photo img { border: 1px solid color-mix(in srgb, var(--neon) 25%, transparent); }
+
+/* Tab-Leiste mit leuchtender Markierung */
+.tabbar { box-shadow: 0 -1px 0 color-mix(in srgb, var(--neon) 18%, transparent), 0 -8px 28px rgba(7, 26, 34, .08); }
+.tabbar button.active::before { background: color-mix(in srgb, var(--neon) 16%, transparent); box-shadow: 0 0 0 1px color-mix(in srgb, var(--neon) 35%, transparent), 0 0 16px color-mix(in srgb, var(--neon) 30%, transparent); }
+.tabbar button.active .ic { filter: drop-shadow(0 0 5px color-mix(in srgb, var(--neon) 70%, transparent)); }
+
+/* Karte */
+.mk-spot { background: linear-gradient(135deg, var(--neon), var(--accent-2)); box-shadow: 0 0 0 4px rgba(24, 212, 230, .25), 0 2px 6px rgba(0, 0, 0, .3); }
+.mk-catch { box-shadow: 0 0 0 4px rgba(242, 169, 59, .28), 0 2px 6px rgba(0, 0, 0, .3); }
+
+/* Dialoge */
+dialog { border: 1px solid color-mix(in srgb, var(--neon) 25%, transparent); }
+.sheet-grab { background: linear-gradient(90deg, var(--neon), var(--accent-2)); opacity: .7; }
