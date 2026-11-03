@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Fish Tracker</title>
+  <meta name="description" content="Fänge eintragen, Spots finden, Beißzeiten und Techniken – mit interaktiver Karte.">
+  <meta name="theme-color" content="#0b4f6c">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><img src="icons/icon.svg" alt="" width="28" height="28"> Fish Tracker</div>
+    <div id="netStatus" class="net" hidden>offline</div>
+  </header>
+
+  <main>
+    <!-- KARTE -->
+    <section id="view-map" class="view active">
+      <div id="map"></div>
+      <div class="map-tools">
+        <button id="btnLocate" class="round" title="Mein Standort" aria-label="Mein Standort">◎</button>
+      </div>
+      <div class="map-filter">
+        <label><input type="checkbox" id="showCatches" checked> Fänge</label>
+        <label><input type="checkbox" id="showSpots" checked> Spots</label>
+      </div>
+      <button id="fabCatch" class="fab">＋ Fang</button>
+    </section>
+
+    <!-- FÄNGE -->
+    <section id="view-catches" class="view">
+      <div class="toolbar">
+        <input id="catchSearch" type="search" placeholder="Suchen (Fischart, Köder, Notiz …)">
+        <button class="btn primary" data-action="new-catch">＋ Fang</button>
+      </div>
+      <div id="catchList" class="list"></div>
+    </section>
+
+    <!-- SPOTS -->
+    <section id="view-spots" class="view">
+      <div class="toolbar">
+        <input id="spotSearch" type="search" placeholder="Spots durchsuchen">
+        <button class="btn primary" data-action="new-spot">＋ Spot</button>
+      </div>
+      <p class="hint">Tipp: Auf die Karte tippen, um einen Spot genau dort zu speichern – oder mit „🔎 Angelplätze hier suchen“ öffentliche Plätze aus OpenStreetMap finden.</p>
+      <div id="spotList" class="list"></div>
+    </section>
+
+    <!-- BEISSZEITEN -->
+    <section id="view-times" class="view">
+      <div class="card">
+        <div class="row between">
+          <h2>Beißzeiten</h2>
+          <input id="timesDate" type="date">
+        </div>
+        <select id="timesPlace" aria-label="Ort für Beißzeiten"></select>
+        <div id="todayRating"></div>
+        <div id="timeline" class="timeline"></div>
+        <div id="periods"></div>
+      </div>
+      <div class="card">
+        <h3>Wetter</h3>
+        <div id="weather"><p class="muted">Wird geladen …</p></div>
+      </div>
+      <div class="card">
+        <h3>Nächste 7 Tage</h3>
+        <div id="week" class="week"></div>
+      </div>
+      <div class="card">
+        <h3>Deine besten Zeiten</h3>
+        <p class="muted small">Aus deinen eingetragenen Fängen berechnet.</p>
+        <div id="myHours"></div>
+      </div>
+      <p class="hint">Die Beißzeiten basieren auf der Solunar-Theorie (Mondstand, Mondphase, Sonnenauf- und -untergang). Sie sind ein Anhaltspunkt – Wetter, Wassertemperatur und Gewässer zählen genauso.</p>
+    </section>
+
+    <!-- TECHNIKEN -->
+    <section id="view-guide" class="view">
+      <div class="toolbar">
+        <input id="guideSearch" type="search" placeholder="Fischart oder Technik suchen">
+      </div>
+      <div id="guide"></div>
+    </section>
+
+    <!-- STATISTIK -->
+    <section id="view-stats" class="view">
+      <div id="stats"></div>
+      <div class="card">
+        <h3>Daten</h3>
+        <p class="muted small">Alle Daten liegen nur auf diesem Gerät. Erstelle regelmäßig ein Backup.</p>
+        <div class="row wrap">
+          <button class="btn" id="btnExport">Backup exportieren</button>
+          <label class="btn">Backup importieren<input type="file" id="importFile" accept="application/json" hidden></label>
+        </div>
+        <div id="installBox" hidden>
+          <p class="small">Fish Tracker als App installieren:</p>
+          <button class="btn primary" id="btnInstall">Auf Startbildschirm installieren</button>
+        </div>
+        <p class="muted small" id="iosHint" hidden>iPhone/iPad: In Safari auf „Teilen“ tippen → „Zum Home-Bildschirm“.</p>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabbar">
+    <button data-view="map" class="active"><span>🗺️</span>Karte</button>
+    <button data-view="catches"><span>🐟</span>Fänge</button>
+    <button data-view="spots"><span>📍</span>Spots</button>
+    <button data-view="times"><span>🌙</span>Zeiten</button>
+    <button data-view="guide"><span>🎣</span>Technik</button>
+    <button data-view="stats"><span>📊</span>Statistik</button>
+  </nav>
+
+  <!-- Formular-Dialog -->
+  <dialog id="sheet">
+    <form id="sheetForm" method="dialog">
+      <div class="sheet-head">
+        <h2 id="sheetTitle"></h2>
+        <button type="button" class="icon" data-close aria-label="Schließen">✕</button>
+      </div>
+      <div id="sheetBody"></div>
+      <div class="sheet-foot">
+        <button type="button" class="btn danger" id="sheetDelete" hidden>Löschen</button>
+        <span class="grow"></span>
+        <button type="button" class="btn" data-close>Abbrechen</button>
+        <button type="submit" class="btn primary">Speichern</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
