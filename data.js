@@ -1,0 +1,156 @@
+/* Wissensdatenbank: Fischarten & Techniken.
+ * months: Fangaussichten Jan–Dez (0 = kaum, 1 = mäßig, 2 = gut, 3 = sehr gut)
+ * closed: typische Schonzeit-Monate (Index 0–11) – variiert je nach Bundesland/Gewässer!
+ */
+window.FISH_GUIDE = [
+  {
+    name: "Hecht", emoji: "🐊", type: "Raubfisch",
+    months: [1, 1, 0, 0, 2, 2, 1, 1, 2, 3, 3, 2], closed: [1, 2, 3],
+    daytime: "Morgens und abends, an trüben, windigen Tagen auch ganztägig.",
+    spots: "Schilfkanten, Seerosenfelder, Krautbänke, Barschschwärme, Einläufe, versunkene Bäume.",
+    techniques: ["Spinnfischen", "Jerkbait-Angeln", "Köderfisch an der Pose", "Schleppangeln"],
+    baits: "Gummifisch (10–20 cm), Spinner, Blinker, Wobbler, Jerkbait, toter Köderfisch.",
+    tips: "Stahl- oder Titanvorfach ist Pflicht – Hechtzähne durchtrennen Mono/Geflecht. Im Herbst große Köder langsam führen. Typisches Mindestmaß 45–60 cm.",
+  },
+  {
+    name: "Zander", emoji: "🐟", type: "Raubfisch",
+    months: [1, 1, 1, 0, 0, 2, 2, 2, 3, 3, 3, 2], closed: [3, 4],
+    daytime: "Dämmerung und Nacht; bei trübem Wasser auch tagsüber.",
+    spots: "Harter Grund, Steinpackungen, Kanten, Buhnenfelder, Brückenpfeiler, tiefe Rinnen.",
+    techniques: ["Jiggen / Faulenzen", "Dropshot", "Köderfisch auf Grund", "Vertikalangeln"],
+    baits: "Schlanke Gummifische (8–14 cm), Köderfischfetzen, kleiner Köderfisch, Wobbler nachts im Flachen.",
+    tips: "Bisse sind oft nur ein leichtes 'Tock' – sofort anschlagen. Grundkontakt halten. Typisches Mindestmaß 40–50 cm.",
+  },
+  {
+    name: "Barsch", emoji: "🐠", type: "Raubfisch",
+    months: [1, 1, 1, 2, 2, 2, 3, 3, 3, 3, 2, 1], closed: [],
+    daytime: "Tagsüber aktiv, besonders am Vormittag und späten Nachmittag.",
+    spots: "Stege, Spundwände, Steinschüttungen, Krautkanten, Plateaus – oft im Schwarm.",
+    techniques: ["Dropshot", "Spinnfischen", "Finesse (Ned-/Texas-Rig)", "Posenangeln mit Wurm"],
+    baits: "Kleine Gummis (5–8 cm), Spinner Gr. 1–3, Tauwurm, kleine Wobbler, Spinnerbaits.",
+    tips: "Wo ein Barsch beißt, sind meist mehr – Stelle intensiv befischen. Möwen über Kleinfischschwärmen zeigen Raubaktivität.",
+  },
+  {
+    name: "Forelle", emoji: "🎏", type: "Salmonide",
+    months: [0, 1, 3, 3, 3, 2, 1, 1, 2, 2, 0, 0], closed: [9, 10, 11, 0, 1],
+    daytime: "Früh morgens und abends; bei bedecktem Himmel ganztägig.",
+    spots: "Strömungskanten, Gumpen, Rauschen, unterspülte Ufer; im Forellensee Einläufe und Windufer.",
+    techniques: ["Spinnfischen (UL)", "Fliegenfischen", "Sbirolino / Tremarella (Forellensee)", "Posenangeln"],
+    baits: "Spinner Gr. 0–2, kleine Wobbler, Spoons, Nymphen/Trockenfliegen, Bienenmade, Forellenteig.",
+    tips: "Vorsichtig anschleichen – Forellen sehen gut. Dünne Schnur (0,16–0,20 mm). Schonzeit Bachforelle meist im Winter.",
+  },
+  {
+    name: "Karpfen", emoji: "🐡", type: "Friedfisch",
+    months: [0, 0, 1, 2, 3, 3, 3, 3, 3, 2, 1, 0], closed: [],
+    daytime: "Nachts und frühmorgens; an warmen Tagen auch mittags an der Oberfläche.",
+    spots: "Krautfelder, Seerosen, überhängende Bäume, Plateaus, windzugewandtes Ufer bei warmem Wind.",
+    techniques: ["Karpfenansitz (Selbsthakmontage)", "Feederangeln", "Posenangeln", "Oberflächenangeln mit Brot"],
+    baits: "Boilies an der Haarmontage, Mais, Tigernüsse, Pellets, Frolic, Brotflocke.",
+    tips: "Gezielt anfüttern (Spod/Futterboot). Abhakmatte und Karpfenpflege mitnehmen. Wind auf das Ufer bringt Nahrung und Fisch.",
+  },
+  {
+    name: "Aal", emoji: "🐍", type: "Raubfisch",
+    months: [0, 0, 0, 1, 2, 3, 3, 3, 2, 1, 0, 0], closed: [],
+    daytime: "Warme, dunkle Nächte – ideal bei Gewitterstimmung, Neumond und steigendem/trübem Wasser.",
+    spots: "Steinpackungen, Hafenbecken, Schilfkanten, schlammiger Grund in Ufernähe.",
+    techniques: ["Grundangeln mit Laufblei", "Posenangeln nachts (Knicklicht)"],
+    baits: "Tauwurm(bündel), Köderfischfetzen, Tauwurm + Made.",
+    tips: "Der Europäische Aal ist stark gefährdet – in vielen Gewässern gilt ein Entnahmeverbot oder eine Schonzeit. Unbedingt die regionalen Regeln prüfen!",
+  },
+  {
+    name: "Wels", emoji: "🐋", type: "Raubfisch",
+    months: [0, 0, 0, 1, 2, 3, 3, 3, 2, 1, 0, 0], closed: [],
+    daytime: "Nachts; an heißen Sommertagen auch in der Dämmerung.",
+    spots: "Tiefe Löcher, Totholz, Prallhänge, Buhnenköpfe, Abbruchkanten.",
+    techniques: ["U-Pose / Unterwasserpose", "Klopfen (Wallerholz)", "Grundangeln", "Vertikalangeln"],
+    baits: "Tauwurmbündel, Köderfisch, Calamari, große Gummifische, Blutegel.",
+    tips: "Sehr kräftiges Gerät (Schnur ab 0,40 mm geflochten). Bremse vorher prüfen, große Kescher/Wallergriff verwenden.",
+  },
+  {
+    name: "Schleie", emoji: "🟢", type: "Friedfisch",
+    months: [0, 0, 0, 1, 3, 3, 3, 2, 1, 0, 0, 0], closed: [],
+    daytime: "Früh morgens bis zum Vormittag, abends.",
+    spots: "Flache, krautige Buchten, Seerosen, schlammiger Grund. Aufsteigende Bläschen verraten sie.",
+    techniques: ["Posenangeln (Liftmethode)", "Feederangeln"],
+    baits: "Rotwurm, Tauwurmstück, Mais, Made, Caster.",
+    tips: "Platz am Vorabend anfüttern. Feine Pose, flach ausloten – der Köder sollte auf dem Grund liegen.",
+  },
+  {
+    name: "Brassen & Rotauge", emoji: "🐟", type: "Friedfisch",
+    months: [1, 1, 2, 2, 2, 3, 3, 3, 3, 2, 2, 1], closed: [],
+    daytime: "Ganztägig, Brassen bevorzugt abends und nachts.",
+    spots: "Tieferes Freiwasser, Kanäle, Häfen, Rinnen in Flüssen.",
+    techniques: ["Feederangeln", "Posenangeln (Stippe/Match)", "Method-Feeder"],
+    baits: "Made, Caster, Mais, Wurm, Teig; Futter mit Lockstoffen.",
+    tips: "Konstantes Füttern hält den Schwarm am Platz. Ideal für Einsteiger und Köderfischfang (Regeln beachten).",
+  },
+  {
+    name: "Döbel", emoji: "🐟", type: "Friedfisch",
+    months: [1, 1, 1, 2, 2, 3, 3, 3, 2, 2, 1, 1], closed: [],
+    daytime: "Ganztägig, im Sommer mittags an der Oberfläche.",
+    spots: "Unter überhängenden Bäumen, Brückenschatten, Strömungskanten in Flüssen.",
+    techniques: ["Spinnfischen", "Freie Leine (Oberfläche)", "Trotting mit Pose", "Fliegenfischen"],
+    baits: "Brotkruste, Kirschen, Käse, Insekten, kleine Wobbler und Spinner.",
+    tips: "Sehr scheu – Schatten und Erschütterungen vermeiden. Allesfresser: was ins Wasser fällt, wird probiert.",
+  },
+];
+
+window.TECHNIQUES = [
+  {
+    name: "Spinnfischen",
+    desc: "Aktives Angeln mit Kunstködern, die geworfen und eingeholt werden. Viel Strecke machen, Spots abklappern.",
+    gear: "Spinnrute 2,1–2,7 m (WG passend zum Köder), 2500er Rolle, geflochtene Schnur + Fluorocarbon-/Stahlvorfach.",
+    how: "Werfen, absinken lassen, mit wechselndem Tempo einholen. Spinnstopps und Zupfer provozieren Bisse.",
+  },
+  {
+    name: "Jiggen / Faulenzen",
+    desc: "Gummifisch am Jigkopf springt über den Grund – Klassiker auf Zander und Barsch.",
+    gear: "Straffe Spinnrute, geflochtene Schnur (Bissübertragung!), Jigköpfe 7–28 g.",
+    how: "Köder zum Grund sinken lassen, mit 2–3 Kurbelumdrehungen anheben (Faulenzen) oder per Rutenschlag. Biss meist in der Absinkphase.",
+  },
+  {
+    name: "Dropshot",
+    desc: "Köder hängt über dem Blei und wird nahezu auf der Stelle angeboten – perfekt für träge Fische.",
+    gear: "Leichte Rute, Dropshot-Haken, Blei 5–15 g, 30–50 cm Abstand Haken–Blei.",
+    how: "Blei am Grund lassen, Köder mit leichten Rutenbewegungen zittern lassen, Pausen einlegen.",
+  },
+  {
+    name: "Posenangeln",
+    desc: "Die Pose zeigt den Biss und hält den Köder in der gewünschten Tiefe.",
+    gear: "Posenrute/Matchrute, feine Mono, Pose passend zur Strömung, Schrotbleie.",
+    how: "Wassertiefe ausloten, Pose so einstellen, dass der Köder knapp über oder auf dem Grund liegt. Abtauchen = Anschlag.",
+  },
+  {
+    name: "Feeder- / Grundangeln",
+    desc: "Futterkorb bringt Futter und Köder gemeinsam an den Grund – sehr effektiv auf Friedfische.",
+    gear: "Feederrute mit Bissanzeige-Spitze, Futterkorb 20–80 g, Vorfach 50–100 cm.",
+    how: "Immer dieselbe Stelle anwerfen (Schnurclip), alle 5–10 Min. neu befüllen. Zittern/Ruck der Spitze zeigt den Biss.",
+  },
+  {
+    name: "Karpfenansitz",
+    desc: "Selbsthakmontage mit festem Blei: Der Fisch hakt sich beim Wegschwimmen selbst.",
+    gear: "Karpfenruten 3–3,5 lbs, Freilaufrolle, Bissanzeiger, Haarmontage, Abhakmatte.",
+    how: "Platz anfüttern, Montage präzise ablegen, Schnur leicht spannen und auf den Bissanzeiger warten.",
+  },
+  {
+    name: "Fliegenfischen",
+    desc: "Fast schwerelose Imitationen von Insekten werden mit der schweren Fliegenschnur geworfen.",
+    gear: "Fliegenrute Klasse 4–6, Fliegenschnur, Vorfach, Trockenfliegen, Nymphen, Streamer.",
+    how: "Schlupf beobachten und passende Fliege wählen. Nymphe mit der Strömung treiben lassen, Trockenfliege ohne Zug driften lassen.",
+  },
+  {
+    name: "Köderfisch-Angeln",
+    desc: "Toter oder (wo erlaubt) lebender Köderfisch an Pose oder auf Grund für große Räuber.",
+    gear: "Kräftige Rute, Stahlvorfach (Hecht), Drilling/Einzelhaken, Laufpose oder Grundmontage.",
+    how: "Köderfisch an Kanten anbieten, regelmäßig versetzen. Hinweis: lebender Köderfisch ist in Deutschland in der Regel verboten.",
+  },
+];
+
+window.GENERAL_TIPS = [
+  "🌡️ Fallender Luftdruck vor einer Wetterfront bringt oft hohe Beißaktivität, besonders bei Raubfischen.",
+  "☁️ Bedeckter Himmel und leichter Wind („Hechtwetter“) sind meist besser als Sonne und Flaute.",
+  "🌅 Morgen- und Abenddämmerung sind fast immer die produktivsten Zeiten.",
+  "💧 Nach Regen: trübes, steigendes Wasser lockt Aal, Zander und Wels.",
+  "🧊 Im Winter langsam und tief fischen – der Stoffwechsel der Fische ist reduziert.",
+  "📜 Fischereischein, Gewässerkarte, Schonzeiten und Mindestmaße deines Bundeslandes/Gewässers gelten immer vor den Angaben hier.",
+];
