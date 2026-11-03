@@ -1,6 +1,6 @@
 {
-  "name": "Fish Tracker – Schweizer Gewässer",
-  "short_name": "Fish Tracker",
+  "name": "Fischerglück – Fangbuch für Schweizer Gewässer",
+  "short_name": "Fischerglück",
   "description": "Fänge, Spots, Beisszeiten, MeteoSwiss-Wetter und Wassertemperaturen für Schweizer Gewässer.",
   "lang": "de-CH",
   "start_url": "./",

@@ -1,4 +1,4 @@
-/* Fish Tracker – Fänge, Spots, Beisszeiten, MeteoSwiss-Wetter und Wassertemperaturen
+/* Fischerglück – Fänge, Spots, Beisszeiten, MeteoSwiss-Wetter und Wassertemperaturen
  * für Schweizer Gewässer. Alle persönlichen Daten bleiben lokal (IndexedDB).
  */
 (() => {
@@ -1422,7 +1422,7 @@
           <button type="button" class="btn" id="btnExport">${ic("download", "sm")}Backup exportieren</button>
           <label class="btn">${ic("upload", "sm")}Backup importieren<input type="file" id="importFile" accept="application/json" hidden></label>
         </div>
-        ${!standalone ? `<h3>Als App installieren</h3><p class="small muted" style="margin-bottom:10px">${isIOS ? "In Safari unten auf «Teilen» tippen und «Zum Home-Bildschirm» wählen." : "Installiere Fish Tracker auf dem Startbildschirm – die App funktioniert dann auch offline."}</p>
+        ${!standalone ? `<h3>Als App installieren</h3><p class="small muted" style="margin-bottom:10px">${isIOS ? "In Safari unten auf «Teilen» tippen und «Zum Home-Bildschirm» wählen." : "Installiere Fischerglück auf dem Startbildschirm – die App funktioniert dann auch offline."}</p>
           ${deferredPrompt ? `<button type="button" class="btn btn-primary" id="btnInstall" style="margin-bottom:22px">Installieren</button>` : `<div style="margin-bottom:22px"></div>`}` : ""}
         <h3>Datenquellen</h3>
         <ul class="small muted" style="padding-left:18px;margin:0 0 10px">
@@ -1432,7 +1432,7 @@
           <li>Pegel, Abfluss, Flusstemperatur: <a href="https://www.hydrodaten.admin.ch" target="_blank" rel="noopener">BAFU Hydrodaten</a> via existenz.ch</li>
           <li>Karten: swisstopo, OpenStreetMap, OpenSeaMap · Gewässersuche: Nominatim</li>
         </ul>
-        <p class="source">Fish Tracker · Beisszeiten nach Solunar-Theorie (SunCalc). Alle Angaben ohne Gewähr.</p>`,
+        <p class="source">Fischerglück · Beisszeiten nach Solunar-Theorie (SunCalc). Alle Angaben ohne Gewähr.</p>`,
     });
     $("#btnExport").onclick = exportBackup;
     $("#importFile").onchange = importBackup;
@@ -1443,7 +1443,7 @@
     const blob = new Blob([JSON.stringify({ app: "fish-tracker", version: 2, exported: new Date().toISOString(), catches: state.catches, spots: state.spots, waters: state.waters })], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `fish-tracker-backup-${toDateKey(new Date())}.json`;
+    a.download = `fischerglueck-backup-${toDateKey(new Date())}.json`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }

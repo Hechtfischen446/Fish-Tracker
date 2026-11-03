@@ -1,4 +1,4 @@
-# 🎣 Fish Tracker – Schweizer Gewässer
+# 🎣 Fischerglück – Fangbuch für Schweizer Gewässer
 
 Installierbare Web-App (PWA) fürs Fischen in der Schweiz. Du wählst ein Gewässer, und die ganze App zeigt Daten genau für dieses Gewässer: Wassertemperatur nach Tiefe, Sprungschicht, Pegel und Abfluss, MeteoSwiss-Wetter, Beisszeiten, passende Fischarten sowie deine Fänge und Spots.
 
