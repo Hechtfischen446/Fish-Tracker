@@ -1,4 +1,4 @@
-/* Fish Tracker – Fänge, Spots, Beisszeiten, MeteoSwiss-Wetter und Wassertemperaturen
+/* Fischerglück – Fänge, Spots, Beisszeiten, MeteoSwiss-Wetter und Wassertemperaturen
  * für Schweizer Gewässer. Alle persönlichen Daten bleiben lokal (IndexedDB).
  */
 (() => {
@@ -400,20 +400,23 @@
     return out;
   }
   // Zeitreihe (Linie oder Balken), eine Serie, eine Achse
-  function timeChart(el, { data, unit = "", digits = 0, type = "line", height = 130, zeroBase = false }) {
+  function timeChart(el, { data, unit = "", digits = 0, type = "line", height = 130, zeroBase = false, invert = false, maxY = null, minSpan = 0 }) {
     const pts = data.filter((p) => p[1] != null);
     if (pts.length < 2) { el.innerHTML = `<p class="faint small">Keine Daten</p>`; return; }
-    const W = Math.max(280, el.clientWidth || 320), H = height, m = { l: 34, r: 8, t: 10, b: 22 };
+    const W = Math.max(280, el.clientWidth || 320), H = height, m = { l: minSpan && minSpan < 1 ? 46 : 34, r: 8, t: 10, b: 22 };
     const x0 = pts[0][0], x1 = pts[pts.length - 1][0];
     let ys = pts.map((p) => p[1]), lo = Math.min(...ys), hi = Math.max(...ys);
     if (zeroBase || type === "bar") lo = 0;
     if (type === "bar" && hi < 1) hi = 1;
+    if (maxY != null) hi = maxY;
+    if (hi - lo < minSpan) { const c = (hi + lo) / 2; lo = c - minSpan / 2; hi = c + minSpan / 2; }
     const ticks = niceTicks(lo, hi, 3);
     lo = ticks[0]; hi = ticks[ticks.length - 1];
     const X = (t) => m.l + ((t - x0) / (x1 - x0)) * (W - m.l - m.r);
-    const Y = (v) => m.t + (1 - (v - lo) / (hi - lo)) * (H - m.t - m.b);
+    const Y = (v) => m.t + (invert ? (v - lo) / (hi - lo) : 1 - (v - lo) / (hi - lo)) * (H - m.t - m.b);
     let s = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img">`;
-    ticks.forEach((v) => { s += `<line class="grid" x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}"/><text class="axis-t" x="${m.l - 6}" y="${Y(v) + 3.5}" text-anchor="end">${nf(v, 1)}</text>`; });
+    const td = Math.max(0, Math.min(3, -Math.floor(Math.log10(ticks[1] - ticks[0] || 1))));
+    ticks.forEach((v) => { s += `<line class="grid" x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}"/><text class="axis-t" x="${m.l - 6}" y="${Y(v) + 3.5}" text-anchor="end">${nf(v, td)}</text>`; });
     // Zeitachse: Tagesmarken, bei kurzen Zeiträumen zusätzlich Uhrzeiten
     const short = x1 - x0 <= 50 * 3600e3;
     const d = new Date(x0); d.setMinutes(0, 0, 0); d.setHours(Math.ceil(d.getHours() / 6) * 6);
@@ -426,7 +429,7 @@
     }
     if (type === "bar") {
       const bw = Math.max(2, ((W - m.l - m.r) / pts.length) - 2);
-      pts.forEach(([t, v]) => { if (v > 0) { const h = Math.max(1, Y(lo) - Y(v)); s += `<rect class="bar" x="${Math.min(Math.max(X(t) - bw / 2, m.l), W - m.r - bw)}" y="${Y(lo) - h}" width="${bw}" height="${h}" rx="${Math.min(2, bw / 2)}"/>`; } });
+      pts.forEach(([t, v]) => { if (v > 0) { const h = Math.max(1, Y(lo) - Y(v)); const fill = el.dataset.scoreBars ? ` style="fill:${v >= 60 ? "var(--good)" : v >= 40 ? "var(--warn)" : "var(--line-strong)"}"` : ""; s += `<rect class="bar" x="${Math.min(Math.max(X(t) - bw / 2, m.l), W - m.r - bw)}" y="${Y(lo) - h}" width="${bw}" height="${h}" rx="${Math.min(2, bw / 2)}"${fill}/>`; } });
     } else {
       const path = pts.map(([t, v], i) => `${i ? "L" : "M"}${X(t).toFixed(1)},${Y(v).toFixed(1)}`).join("");
       s += `<path class="area" d="${path}L${X(x1)},${Y(lo)}L${X(x0)},${Y(lo)}Z"/><path class="series" d="${path}"/>`;
@@ -1063,6 +1066,7 @@
         <div class="card-head"><h3>Fischarten · ${MONTHS[month]}</h3><button class="link-btn" data-action="goto" data-view="guide">Alle</button></div>
         ${species.length ? `<div class="list" style="border:0;border-radius:0;margin:0 -16px -16px">${species.map(({ f, lvl, spawn }) => `
           <button type="button" class="li" data-action="guide-fish" data-name="${esc(f.name)}">
+            ${photoOf(f.name) ? `<img class="thumb sm" src="${photoOf(f.name).file}" alt="" loading="lazy">` : ""}
             <span class="body"><span class="t">${esc(f.name)}</span><span class="s">${esc(f.techniques.slice(0, 2).join(" · "))}</span></span>
             <span class="end">${spawn ? `<span class="pill pill-warn">Laichzeit</span>` : `<span class="pill ${lvl >= 3 ? "pill-good" : lvl === 2 ? "pill-accent" : "pill-neutral"}">${["Kaum", "Mässig", "Gut", "Sehr gut"][lvl]}</span>`}</span>
           </button>`).join("")}</div>`
@@ -1242,7 +1246,15 @@
         <div class="timeline">${tl}</div>
         <div class="tl-scale"><span>0</span><span>6</span><span>12</span><span>18</span><span>24 Uhr</span></div>
         <div class="legend"><span><i style="background:var(--good)"></i>Hauptbeisszeit</span><span><i style="background:var(--warn)"></i>Nebenbeisszeit</span><span><i style="background:color-mix(in srgb,var(--ink) 15%,transparent)"></i>Nacht</span></div>
-        ${sol.periods.map((p) => `<div class="period"><span class="when">${hm(p.from)} – ${hm(p.to)}</span><span class="row" style="gap:6px"><span class="faint small">${p.label}</span><span class="pill ${p.kind === "major" ? "pill-good" : "pill-warn"}">${p.kind === "major" ? "Haupt" : "Neben"}</span></span></div>`).join("")}
+        <div class="chart-title" style="margin-top:18px"><b>Beissindex im Tagesverlauf</b><span id="biteSrc">Mond & Dämmerung</span></div>
+        <div class="chart" id="chBite" data-score-bars="1"></div>
+        <div id="bestWin"></div>
+        <h3 style="margin-top:18px">Beisszeiten im Detail</h3>
+        <div id="periodsDetail">${periodsHtml(sol, null, w)}</div>
+        <details class="explain"><summary>${ic("info", "xs")}Wie wird das berechnet?</summary>
+          <p>Nach der <b>Solunar-Theorie</b> sind Fische aktiver, wenn der Mond im Zenit oder Nadir steht (Hauptbeisszeiten, ±1 h) und bei Mondauf- und -untergang (Nebenbeisszeiten, ±30 min). Bei Neu- und Vollmond ist der Effekt am stärksten. Fallen diese Zeiten in die <b>Morgen- oder Abenddämmerung</b>, steigt die Aktivität zusätzlich.</p>
+          <p>Der stündliche Index berücksichtigt ausserdem das <b>Wetter</b>: Fallender Luftdruck und leichter Regen erhöhen ihn, starke Böen, Gewitter und stark steigender Druck senken ihn. Die Werte sind ein Anhaltspunkt, kein Versprechen.</p>
+        </details>
       </div>
 
       <div class="card"><div class="card-head"><h3>7 Tage</h3><span class="xsmall faint" id="fcModel"></span></div><div class="days" id="days"></div>
@@ -1261,6 +1273,7 @@
         <div class="chart-title"><b>Wind</b><span>km/h, Mittelwind</span></div><div class="chart" id="chWind"></div>
         <div class="chart-title"><b>Luftdruck</b><span>hPa am Boden</span></div><div class="chart" id="chPress"></div>
         <p class="source" id="fcSource"></p>
+        <div id="waterCharts"></div>
       </div>
 
       <div class="card" id="fcTips" hidden><h3>Einschätzung</h3><div id="tipsBody"></div></div>`;
@@ -1290,6 +1303,13 @@
       }).join("");
     };
     renderDays(null);
+    const drawBite = (fc) => {
+      requestAnimationFrame(() => timeChart($("#chBite"), { data: biteSeries(sol, fc), unit: "", type: "bar", height: 100, maxY: 100 }));
+      const best = bestWindow(sol, fc);
+      $("#bestWin").innerHTML = best?.none ? `<div class="insight">${ic("moon", "sm")}<div>Für den Rest des Tages ist keine starke Beissphase mehr zu erwarten. Tippe unten auf einen anderen Tag.</div></div>` : best ? `<div class="insight">${ic("target", "sm")}<div>Beste Zeit ${isToday ? "heute" : "an diesem Tag"}: <b>${hm(best.from)} – ${hm(best.to)}</b> (Index ${best.v})${best.note ? ` · ${best.note}` : ""}</div></div>` : "";
+    };
+    drawBite(null);
+    renderWaterCharts(w, place, sol, isToday);
     daysEl.addEventListener("click", (e) => { const r = e.target.closest(".day-row"); if (r) { state.day = new Date(r.dataset.date + "T12:00"); renderForecast(); } });
 
     if (!navigator.onLine) { $("#fcCharts").innerHTML = `<h3>Nächste 48 Stunden</h3><p class="muted small">Offline – Wetterdaten nicht verfügbar.</p>`; ["mAir", "mWind", "mPress", "mRain"].forEach((id) => setTile(id, null, "Offline")); return; }
@@ -1308,6 +1328,9 @@
       timeChart($("#chRain"), { data: ser("precipitation"), unit: "mm", digits: 1, type: "bar", height: 90 });
       timeChart($("#chWind"), { data: ser("wind_speed_10m"), unit: "km/h", zeroBase: true, height: 110 });
       timeChart($("#chPress"), { data: ser("surface_pressure"), unit: "hPa", height: 110 });
+      drawBite(fc);
+      $("#biteSrc").textContent = "Mond, Dämmerung & Wetter";
+      $("#periodsDetail").innerHTML = periodsHtml(sol, fc, w);
       $("#fcSource").innerHTML = `Prognose: ${esc(fc.model)} via <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a> · Messwerte: MeteoSchweiz`;
       const tips = weatherTips(fc, activeWater());
       if (tips.length) { $("#fcTips").hidden = false; $("#tipsBody").innerHTML = tips.map((t) => `<div class="period" style="justify-content:flex-start"><span>${t}</span></div>`).join(""); }
@@ -1321,6 +1344,134 @@
       setTile("mPress", m.qff != null ? `${nf(m.qff, 0)}<small>hPa</small>` : null, "Meeresniveau (QFF)");
       setTile("mRain", `${nf(m.rain, 1)}<small>mm</small>`, "letzte 10 Minuten");
     }).catch(() => ["mAir", "mWind", "mPress", "mRain"].forEach((id) => setTile(id, null, "Nicht erreichbar")));
+  }
+
+  // ── Beissindex pro Stunde ──
+  function hourAt(fc, t) {
+    if (!fc) return -1;
+    const h = fc.hourly.time, k = toLocalInput(new Date(t)).slice(0, 13);
+    return h.findIndex((x) => x.slice(0, 13) === k);
+  }
+  function biteAt(t, sol, fc) {
+    const dist = Math.min(sol.ill.phase, Math.abs(sol.ill.phase - 0.5), 1 - sol.ill.phase);
+    const phase = 1 - dist / 0.25; // 1 = Neu-/Vollmond
+    let v = 18;
+    sol.periods.forEach((p) => {
+      const dm = (t - p.t) / 60e3;
+      v += p.kind === "major" ? 46 * Math.exp(-((dm / 70) ** 2)) : 28 * Math.exp(-((dm / 40) ** 2));
+    });
+    [sol.sun.sunrise, sol.sun.sunset].forEach((s) => { if (s && !isNaN(s)) v += 22 * Math.exp(-((((t - s) / 60e3) / 55) ** 2)); });
+    v *= 0.72 + 0.28 * phase;
+    const i = hourAt(fc, t);
+    if (i >= 0) {
+      const H = fc.hourly, p = H.surface_pressure;
+      const dp = i >= 3 && p[i] != null && p[i - 3] != null ? p[i] - p[i - 3] : 0;
+      if (dp <= -1) v += 10; else if (dp >= 1.5) v -= 8;
+      const g = H.wind_gusts_10m?.[i] ?? 0, r = H.precipitation?.[i] ?? 0, c = H.weather_code?.[i] ?? 0;
+      if (g >= 55) v -= 25; else if (g >= 40) v -= 10;
+      if (c >= 95) v -= 40;
+      else if (r > 0.1 && r <= 2) v += 5; else if (r > 4) v -= 6;
+    }
+    return Math.max(2, Math.min(100, Math.round(v)));
+  }
+  const biteSeries = (sol, fc) => Array.from({ length: 48 }, (_, k) => { const t = +sol.day + (k + 0.5) * 1800e3; return [t, biteAt(t, sol, fc)]; });
+  function bestWindow(sol, fc) {
+    const all = biteSeries(sol, fc), now = Date.now();
+    const s = toDateKey(sol.day) === toDateKey(new Date()) ? all.filter(([t]) => t > now - 900e3) : all;
+    if (!s.length) return null;
+    const top = s.reduce((a, b) => (b[1] > a[1] ? b : a));
+    if (top[1] < 35) return { none: true };
+    let a = s.indexOf(top), b = a;
+    while (a > 0 && s[a - 1][1] >= top[1] - 8) a--;
+    while (b < s.length - 1 && s[b + 1][1] >= top[1] - 8) b++;
+    const twilight = [sol.sun.sunrise, sol.sun.sunset].some((x) => x && Math.abs(top[0] - x) < 90 * 60e3);
+    return { from: new Date(s[a][0] - 900e3), to: new Date(s[b][0] + 900e3), v: top[1], note: twilight ? "fällt in die Dämmerung" : "" };
+  }
+  // Passende Fischarten je Tageszeit (nur Arten des Gewässers, in Saison, nicht in Laichzeit)
+  const DAYPART_FISH = {
+    twilight: ["Hecht", "Zander", "Egli", "Seeforelle", "Bachforelle", "Alet", "Barbe", "Schleie"],
+    night: ["Zander", "Wels", "Trüsche", "Karpfen", "Barbe", "Brachsmen & Rotauge"],
+    day: ["Egli", "Felchen", "Seesaibling", "Hecht", "Alet", "Äsche", "Brachsmen & Rotauge"],
+  };
+  function dayPart(t, sol) {
+    const r = sol.sun.sunrise, s = sol.sun.sunset;
+    if ((r && Math.abs(t - r) < 90 * 60e3) || (s && Math.abs(t - s) < 90 * 60e3)) return "twilight";
+    if (r && s && (t < r || t > s)) return "night";
+    return "day";
+  }
+  function fishFor(t, sol, w) {
+    const m = new Date(t).getMonth(), inWater = speciesOfWater(w);
+    return DAYPART_FISH[dayPart(t, sol)].filter((n) => {
+      const f = window.FISH_GUIDE.find((x) => x.name === n);
+      return f && f.months[m] >= 2 && !f.spawn.includes(m) && (!inWater.length || inWater.includes(n));
+    }).slice(0, 3);
+  }
+  function periodsHtml(sol, fc, w) {
+    if (!sol.periods.length) return `<p class="faint small">Keine Perioden an diesem Tag.</p>`;
+    const partName = { twilight: "Dämmerung", night: "Nacht", day: "Tag" };
+    return sol.periods.map((p) => {
+      const v = biteAt(+p.t, sol, fc), i = hourAt(fc, +p.t), H = fc?.hourly;
+      const [wi, wt] = i >= 0 ? WMO(H.weather_code[i]) : [null, ""];
+      const fish = fishFor(+p.t, sol, w);
+      const wx = i >= 0 ? `<span class="row small muted" style="gap:4px;flex-wrap:wrap">${ic(wi, "xs")}${esc(wt)} · ${nf(H.temperature_2m[i], 0)} °C · ${ic("wind", "xs")}${nf(H.wind_speed_10m[i], 0)} km/h${H.wind_gusts_10m[i] >= 35 ? ` (Böen ${nf(H.wind_gusts_10m[i], 0)})` : ""}${H.precipitation_probability?.[i] != null ? ` · ${ic("rain", "xs")}${nf(H.precipitation_probability[i], 0)} %` : ""}</span>` : "";
+      return `<div class="pdetail">
+        <div class="row" style="justify-content:space-between"><span class="when">${hm(p.from)} – ${hm(p.to)}</span>
+          <span class="row" style="gap:6px"><span class="pill ${p.kind === "major" ? "pill-good" : "pill-warn"}">${p.kind === "major" ? "Hauptbeisszeit" : "Nebenbeisszeit"}</span><span class="pidx" style="background:${v >= 60 ? "var(--good)" : v >= 40 ? "var(--warn)" : "var(--surface-2)"};color:${v >= 40 ? "#fff" : "var(--ink-2)"}">${v}</span></span></div>
+        <div class="small muted">${p.label} um ${hm(p.t)} · ${partName[dayPart(+p.t, sol)]}${p.twilight ? " – fällt in die Dämmerung, besonders gut" : ""}</div>
+        ${wx}
+        ${fish.length ? `<div class="small" style="margin-top:4px">Gute Chancen auf: ${fish.map((n) => `<span class="tag accent">${esc(n)}</span>`).join("")}</div>` : ""}
+      </div>`;
+    }).join("");
+  }
+
+  // ── Wasser im Prognose-Zeitraum: Temperatur, Sprungschicht, Pegel ──
+  async function hydroRange(id, par, days = 3) {
+    return cached(`hr:${id}:${par}`, 15 * 60e3, async () => {
+      const start = toDateKey(new Date(Date.now() - days * 864e5)), end = toDateKey(new Date(Date.now() + 864e5));
+      const d = await fetchJSON(`https://api.existenz.ch/apiv1/hydro/daterange?locations=${id}&parameters=${par}&startdate=${start}&enddate=${end}&app=fishtracker`);
+      return d.payload.filter((x) => x.par === par && x.val != null).map((x) => [x.timestamp * 1000, x.val]);
+    });
+  }
+  function renderWaterCharts(w, place, sol, isToday) {
+    const el = $("#waterCharts");
+    if (!el || !w) return;
+    const ld = lakeData(w);
+    const from = isToday ? Date.now() - 3 * 3600e3 : +sol.day, to = isToday ? Date.now() + 48 * 3600e3 : +sol.day + 864e5;
+    const win = (arr) => { const pts = arr.map(([t, v]) => [typeof t === "string" ? Date.parse(t) : t, v]); const inside = pts.filter(([t]) => t >= from - 3 * 3600e3 && t <= to + 3 * 3600e3); return inside; };
+    let html = `<h3 style="margin-top:22px">Wasser · ${esc(w.name)}</h3>`;
+    const parts = [];
+    if (ld) {
+      const sf = win(ld.surface);
+      if (sf.length >= 2) { html += `<div class="chart-title"><b>Wassertemperatur</b><span>°C an der Oberfläche</span></div><div class="chart" id="chWaterT"></div>`; parts.push(["chWaterT", sf, { unit: "°C", digits: 1, height: 110 }]); }
+      const th = win(ld.thermo || []).filter(([, v]) => v != null);
+      if (th.length >= 2) { html += `<div class="chart-title"><b>Sprungschicht</b><span>Tiefe in m (unten = tiefer)</span></div><div class="chart" id="chThermo"></div>`; parts.push(["chThermo", th, { unit: "m", digits: 1, height: 110, invert: true, zeroBase: true }]); }
+      else if (ld.thermo?.length) html += `<p class="small muted" style="margin:8px 0">Im Prognosezeitraum ist keine ausgeprägte Sprungschicht berechnet – der See ist weitgehend durchmischt.</p>`;
+      if (!sf.length) html += `<p class="small muted">Für diesen Tag liegen keine Seemodell-Daten vor (Prognose reicht ca. 4 Tage).</p>`;
+    }
+    html += `<div id="levelBox"></div><p class="source">${ld ? "Wasser: Seemodell Eawag / Alplakes · " : ""}Pegel & Flusstemperatur: BAFU (gemessen)</p>`;
+    el.innerHTML = html;
+    requestAnimationFrame(() => parts.forEach(([id, data, o]) => timeChart($("#" + id), { data, ...o })));
+    const st = hydroStations(w, place);
+    const lv = st.find((s) => s.pars.includes("height") && s.dist < 60);
+    const tp = !ld && st.find((s) => s.pars.includes("temperature") && s.dist < 60);
+    if (!lv && !tp) return;
+    Promise.all([lv ? hydroRange(lv.id, "height") : null, tp ? hydroRange(tp.id, "temperature") : null]).then(([lvData, tpData]) => {
+      const box = $("#levelBox");
+      if (!box) return;
+      const last48 = (a) => a.filter(([t], i) => t >= Date.now() - 48 * 3600e3 && i % 3 === 0);
+      let h = "";
+      if (tpData?.length) h += `<div class="chart-title"><b>Wassertemperatur</b><span>°C · ${esc(tp.name)}, letzte 48 h</span></div><div class="chart" id="chRiverT"></div>`;
+      if (lvData?.length) {
+        const a = last48(lvData), d = a.length > 1 ? a[a.length - 1][1] - a[0][1] : 0;
+        h += `<div class="chart-title"><b>Pegel</b><span>m ü. M. · ${esc(lv.name)}, letzte 48 h</span></div><div class="chart" id="chLevel"></div>
+          <p class="small muted" style="margin-top:6px">Aktuell ${nf(a[a.length - 1]?.[1], 2)} m ü. M. · ${Math.abs(d) < 0.02 ? "stabil" : d > 0 ? `steigend (+${nf(d * 100, 0)} cm in 48 h)` : `fallend (${nf(d * 100, 0)} cm in 48 h)`}${d > 0.05 ? " – steigendes, trübes Wasser bringt oft Zander, Barbe und Alet in Fahrt." : ""}</p>`;
+      }
+      box.innerHTML = h;
+      requestAnimationFrame(() => {
+        if (tpData?.length) timeChart($("#chRiverT"), { data: last48(tpData), unit: "°C", digits: 1, height: 110 });
+        if (lvData?.length) timeChart($("#chLevel"), { data: last48(lvData), unit: "m", digits: 2, height: 110, minSpan: 0.1 });
+      });
+    }).catch(() => { const box = $("#levelBox"); if (box) box.innerHTML = `<p class="small muted">Pegeldaten konnten nicht geladen werden.</p>`; });
   }
 
   // Tageswetter-Liste (Heute + folgende Tage)
@@ -1357,6 +1508,10 @@
   }
 
   // ───────────────────────── Wissen ─────────────────────────
+  const photoOf = (name) => window.FISH_PHOTOS?.[name] || null;
+  const fishThumb = (name) => { const p = photoOf(name); return p ? `<img class="fish-thumb" src="${p.file}" alt="${esc(name)}" loading="lazy">` : `<span class="badge-ic">${ic("fish")}</span>`; };
+  const fishPhoto = (name) => { const p = photoOf(name); return p ? `<figure class="fish-photo"><img src="${p.file}" alt="${esc(name)}" loading="lazy"><figcaption>Foto: ${esc(p.credit)} · <a href="${p.source}" target="_blank" rel="noopener">${esc(p.license)}</a> · iNaturalist</figcaption></figure>` : ""; };
+
   function renderGuide() {
     $$("#guideSeg button").forEach((b) => b.classList.toggle("on", b.dataset.seg === state.guideSeg));
     $("#guideSearchWrap").hidden = state.guideSeg === "rules";
@@ -1373,8 +1528,9 @@
         const big = mine.reduce((m, c) => (c.length > (m?.length || 0) ? c : m), null);
         const temps = mine.filter((c) => c.waterTemp != null).map((c) => c.waterTemp);
         return `<details class="acc" ${q && norm(f.name).includes(q) ? "open" : ""}>
-          <summary><span class="badge-ic">${ic("fish")}</span><span><span class="t">${esc(f.name)}</span><br><span class="s">${esc(f.type)}${f.alias.length ? " · " + esc(f.alias.slice(0, 2).join(", ")) : ""}${mine.length ? ` · ${mine.length} eigene Fänge` : ""}</span></span>${ic("chev", "sm")}</summary>
+          <summary>${fishThumb(f.name)}<span><span class="t">${esc(f.name)}</span><br><span class="s">${esc(f.type)}${f.alias.length ? " · " + esc(f.alias.slice(0, 2).join(", ")) : ""}${mine.length ? ` · ${mine.length} eigene Fänge` : ""}</span></span>${ic("chev", "sm")}</summary>
           <div class="acc-body">
+            ${fishPhoto(f.name)}
             <div class="months">${MONTHS.map((m, i) => `<span class="l${f.months[i]}${f.spawn.includes(i) ? " spawn" : ""}${i === month ? " cur" : ""}">${m}</span>`).join("")}</div>
             <div class="legend" style="margin:-6px 0 12px"><span><i style="background:var(--good)"></i>gute Fangzeit</span><span><i style="background:var(--bad);height:3px;vertical-align:2px"></i>Laichzeit (meist Schonzeit)</span></div>
             <dl>
@@ -1422,7 +1578,7 @@
           <button type="button" class="btn" id="btnExport">${ic("download", "sm")}Backup exportieren</button>
           <label class="btn">${ic("upload", "sm")}Backup importieren<input type="file" id="importFile" accept="application/json" hidden></label>
         </div>
-        ${!standalone ? `<h3>Als App installieren</h3><p class="small muted" style="margin-bottom:10px">${isIOS ? "In Safari unten auf «Teilen» tippen und «Zum Home-Bildschirm» wählen." : "Installiere Fish Tracker auf dem Startbildschirm – die App funktioniert dann auch offline."}</p>
+        ${!standalone ? `<h3>Als App installieren</h3><p class="small muted" style="margin-bottom:10px">${isIOS ? "In Safari unten auf «Teilen» tippen und «Zum Home-Bildschirm» wählen." : "Installiere Fischerglück auf dem Startbildschirm – die App funktioniert dann auch offline."}</p>
           ${deferredPrompt ? `<button type="button" class="btn btn-primary" id="btnInstall" style="margin-bottom:22px">Installieren</button>` : `<div style="margin-bottom:22px"></div>`}` : ""}
         <h3>Datenquellen</h3>
         <ul class="small muted" style="padding-left:18px;margin:0 0 10px">
@@ -1432,7 +1588,7 @@
           <li>Pegel, Abfluss, Flusstemperatur: <a href="https://www.hydrodaten.admin.ch" target="_blank" rel="noopener">BAFU Hydrodaten</a> via existenz.ch</li>
           <li>Karten: swisstopo, OpenStreetMap, OpenSeaMap · Gewässersuche: Nominatim</li>
         </ul>
-        <p class="source">Fish Tracker · Beisszeiten nach Solunar-Theorie (SunCalc). Alle Angaben ohne Gewähr.</p>`,
+        <p class="source">Fischerglück · Beisszeiten nach Solunar-Theorie (SunCalc). Alle Angaben ohne Gewähr.</p>`,
     });
     $("#btnExport").onclick = exportBackup;
     $("#importFile").onchange = importBackup;
@@ -1443,7 +1599,7 @@
     const blob = new Blob([JSON.stringify({ app: "fish-tracker", version: 2, exported: new Date().toISOString(), catches: state.catches, spots: state.spots, waters: state.waters })], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `fish-tracker-backup-${toDateKey(new Date())}.json`;
+    a.download = `fischerglueck-backup-${toDateKey(new Date())}.json`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }

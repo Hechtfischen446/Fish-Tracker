@@ -403,3 +403,19 @@ html.standalone .appbar { padding-top: calc(env(safe-area-inset-top) + 24px); }
 /* Echte Bildschirmhöhe statt der zu kleinen Höhe von iOS 26.0 (per JS gesetzt) */
 html.standalone .app { bottom: auto; height: var(--app-h, 100%); }
 html.standalone .tabbar { --tab-pad: max(calc(env(safe-area-inset-bottom) - 8px), 16px); }
+
+/* Beisszeiten im Detail */
+.pdetail { padding: 12px 0; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; }
+.pdetail .when { font-weight: 700; }
+.pidx { color: #fff; font-weight: 700; font-size: .78rem; min-width: 30px; text-align: center; padding: 3px 7px; border-radius: 99px; }
+.pdetail .tag { margin-bottom: 2px; }
+.explain { margin-top: 14px; background: var(--surface-2); border-radius: var(--r-md); padding: 10px 12px; font-size: .86rem; }
+.explain summary { cursor: pointer; font-weight: 600; color: var(--ink-2); display: flex; align-items: center; gap: 6px; list-style: none; }
+.explain summary::-webkit-details-marker { display: none; }
+.explain p { margin-top: 8px; color: var(--ink-2); }
+/* Fischfotos */
+.fish-thumb { width: 52px; height: 52px; border-radius: 12px; object-fit: cover; flex-shrink: 0; background: var(--surface-2); }
+.fish-photo { margin: 0 0 14px; }
+.fish-photo img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-radius: 12px; display: block; background: var(--surface-2); }
+.fish-photo figcaption { font-size: .7rem; color: var(--ink-3); margin-top: 5px; }
+.fish-photo figcaption a { color: var(--ink-3); }

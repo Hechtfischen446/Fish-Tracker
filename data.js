@@ -231,3 +231,97 @@ window.SWISS_WATERS = [
   { key: "toess", name: "Töss", kind: "river", lat: 47.45, lng: 8.75, cantons: "ZH", hydro: ["Töss"], species: ["Bachforelle", "Äsche"] },
   { key: "birs", name: "Birs", kind: "river", lat: 47.45, lng: 7.6, cantons: "JU, BE, BL, BS", hydro: ["Birs", "Birse"], species: ["Bachforelle", "Äsche", "Barbe"] },
 ];
+
+// Fotos der Fischarten (iNaturalist, freie Lizenzen – Urheber werden in der App angezeigt)
+window.FISH_PHOTOS = {
+  "Egli": {
+    "file": "images/fish/egli.jpg",
+    "credit": "© Gilles San Martin",
+    "license": "CC BY-SA",
+    "source": "https://www.inaturalist.org/photos/194421912"
+  },
+  "Felchen": {
+    "file": "images/fish/felchen.jpg",
+    "credit": "© mikkel65",
+    "license": "CC BY-NC",
+    "source": "https://www.inaturalist.org/photos/112154426"
+  },
+  "Hecht": {
+    "file": "images/fish/hecht.jpg",
+    "credit": "© Frédéric ANDRE",
+    "license": "CC BY-NC",
+    "source": "https://www.inaturalist.org/photos/720194889"
+  },
+  "Zander": {
+    "file": "images/fish/zander.jpg",
+    "credit": "© Christa Rohrbach",
+    "license": "CC BY-NC-SA",
+    "source": "https://www.inaturalist.org/photos/48682903"
+  },
+  "Seeforelle": {
+    "file": "images/fish/seeforelle.jpg",
+    "credit": "© Alexei Poletaev",
+    "license": "CC BY-NC-SA",
+    "source": "https://www.inaturalist.org/photos/392839638"
+  },
+  "Bachforelle": {
+    "file": "images/fish/bachforelle.jpg",
+    "credit": "© Mario Vega Pérez",
+    "license": "CC BY-NC",
+    "source": "https://www.inaturalist.org/photos/75714590"
+  },
+  "Seesaibling": {
+    "file": "images/fish/seesaibling.jpg",
+    "credit": "© Brent Guinn",
+    "license": "CC BY-NC",
+    "source": "https://www.inaturalist.org/photos/111218621"
+  },
+  "Äsche": {
+    "file": "images/fish/aesche.jpg",
+    "credit": "© Gilles San Martin",
+    "license": "CC BY-SA",
+    "source": "https://www.inaturalist.org/photos/682085"
+  },
+  "Trüsche": {
+    "file": "images/fish/truesche.jpg",
+    "credit": "© polarina",
+    "license": "CC BY-NC",
+    "source": "https://www.inaturalist.org/photos/145869053"
+  },
+  "Barbe": {
+    "file": "images/fish/barbe.jpg",
+    "credit": "© Bas Kers",
+    "license": "CC BY-NC-SA",
+    "source": "https://www.inaturalist.org/photos/51360"
+  },
+  "Alet": {
+    "file": "images/fish/alet.jpg",
+    "credit": "© Brian Gratwicke",
+    "license": "CC BY-NC",
+    "source": "https://www.inaturalist.org/photos/4222770"
+  },
+  "Karpfen": {
+    "file": "images/fish/karpfen.jpg",
+    "credit": "© Austin D West",
+    "license": "CC BY-NC",
+    "source": "https://www.inaturalist.org/photos/301455802"
+  },
+  "Schleie": {
+    "file": "images/fish/schleie.jpg",
+    "credit": "© Bradley Rasmussen",
+    "license": "CC BY-NC",
+    "source": "https://www.inaturalist.org/photos/15103391"
+  },
+  "Brachsmen & Rotauge": {
+    "file": "images/fish/brachsmen.jpg",
+    "credit": "© Peter",
+    "license": "CC BY-NC",
+    "source": "https://www.inaturalist.org/photos/48799478"
+  },
+  "Wels": {
+    "file": "images/fish/wels.jpg",
+    "credit": "© Bernard DUPONT",
+    "license": "CC BY-SA",
+    "source": "https://www.inaturalist.org/photos/96387493"
+  }
+};
