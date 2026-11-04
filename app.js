@@ -230,6 +230,7 @@
   function surfaceAt(ld, t = Date.now()) {
     if (!ld?.surface?.length) return null;
     const s = ld.surface.map(([x, v]) => [Date.parse(x), v]);
+    if (t < s[0][0] - 3 * 3600e3) return null; // älter als die Seemodell-Daten → lieber kein Wert als ein falscher
     if (t <= s[0][0]) return s[0][1];
     for (let i = 1; i < s.length; i++) if (t <= s[i][0]) {
       const [t0, v0] = s[i - 1], [t1, v1] = s[i];
@@ -911,7 +912,7 @@
         ${locationField(o)}
         ${field("Foto", `<input type="file" accept="image/*" id="fPhoto"><img id="fPhotoPrev" class="photo-prev" ${photo ? `src="${photo}"` : "hidden"} alt="">`, true)}
         ${field("Notizen", `<textarea name="notes" placeholder="Wetter, Wasser, Besonderheiten …">${esc(o.notes)}</textarea>`, true)}
-        ${existing && (existing.weather || existing.waterTemp != null) ? `<p class="small muted field full">Bedingungen: ${[existing.waterTemp != null ? `Wasser ${nf(existing.waterTemp)} °C` : "", existing.weather ? `Luft ${nf(existing.weather.temp)} °C, Wind ${nf(existing.weather.wind, 0)} km/h ${dirName(existing.weather.dir)}, ${nf(existing.weather.pressure, 0)} hPa` : ""].filter(Boolean).join(" · ")}</p>` : ""}`,
+        ${existing && (existing.weather || existing.waterTemp != null) ? `<p class="small muted field full">Bedingungen: ${[existing.waterTemp != null ? `Wasser ${nf(existing.waterTemp)} °C` : "", existing.weather ? `Luft ${nf(existing.weather.temp)} °C, Wind ${nf(existing.weather.wind, 0)} km/h ${dirName(existing.weather.dir)}, ${nf(existing.weather.pressure, 0)} hPa${existing.weather.source ? ` (${esc(existing.weather.source)})` : ""}` : ""].filter(Boolean).join(" · ")}</p>` : ""}`,
       onSubmit: async () => {
         const v = formVals();
         if (!v.species.trim()) return false;
@@ -922,10 +923,12 @@
           technique: v.technique.trim(), bait: v.bait.trim(), waterId: v.waterId || null, spotId: v.spotId || null,
           released: v.released, notes: v.notes.trim(), lat: num(v.lat), lng: num(v.lng), photo,
         };
-        if (!existing) await captureConditions(rec);
+        const changed = !existing || existing.date !== rec.date || existing.lat !== rec.lat || existing.lng !== rec.lng || existing.waterId !== rec.waterId;
+        if (changed) await captureConditions(rec);
         await DB.put("catches", rec);
         await reload();
-        toast(existing ? "Fang aktualisiert" : "Petri Heil! Fang gespeichert");
+        const past = Date.now() - Date.parse(rec.date) > 3 * 3600e3;
+        toast((existing ? "Fang aktualisiert" : "Petri Heil! Fang gespeichert") + (past && rec.weather ? " · Wetter vom Fangzeitpunkt ergänzt" : ""));
       },
       onDelete: existing ? async () => { await DB.del("catches", existing.id); await reload(); toast("Fang gelöscht"); } : null,
     });
@@ -939,23 +942,79 @@
     });
   }
 
-  // Wetter und Wassertemperatur zum Fangzeitpunkt speichern
+  // Wetter zum Fangzeitpunkt (stündlich): letzte ~90 Tage aus Open-Meteo, älter aus dem Wetterarchiv (ERA5)
+  async function weatherAt(lat, lng, t) {
+    const day = toDateKey(new Date(t)), prev = toDateKey(new Date(t - 864e5));
+    const ageDays = (Date.now() - t) / 864e5;
+    const vars = "hourly=temperature_2m,weather_code,wind_speed_10m,wind_direction_10m,cloud_cover,surface_pressure";
+    const q = `latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}&${vars}&start_date=${prev}&end_date=${day}&timezone=Europe%2FZurich`;
+    const url = ageDays <= 85 ? `https://api.open-meteo.com/v1/forecast?${q}` : `https://archive-api.open-meteo.com/v1/archive?${q}`;
+    const d = await cached("wa:" + url, 6 * 3600e3, () => fetchJSON(url, {}, 9000));
+    if (d.error || !d.hourly) throw new Error(d.reason || "keine Daten");
+    const key = toLocalInput(new Date(t)).slice(0, 13);
+    const i = d.hourly.time.findIndex((x) => x.slice(0, 13) === key);
+    const H = d.hourly;
+    if (i < 0 || H.temperature_2m[i] == null) throw new Error("keine Daten für diese Stunde");
+    const w = { temp: H.temperature_2m[i], code: H.weather_code[i], wind: H.wind_speed_10m[i], dir: H.wind_direction_10m[i], clouds: H.cloud_cover[i], pressure: H.surface_pressure[i], source: ageDays <= 85 ? "Open-Meteo" : "Open-Meteo-Archiv (ERA5)" };
+    if (i >= 3 && H.surface_pressure[i - 3] != null && H.surface_pressure[i] != null) w.pressureTrend = Math.round((H.surface_pressure[i] - H.surface_pressure[i - 3]) * 10) / 10;
+    return w;
+  }
+
+  // Flusstemperatur (BAFU) nur, wenn eine Messung höchstens 90 Minuten neben dem Fangzeitpunkt liegt
+  async function riverTempAt(w, pt, t) {
+    const st = hydroStations(w, pt).find((x) => x.pars.includes("temperature") && x.dist < 60);
+    if (!st) return null;
+    const start = toDateKey(new Date(t - 864e5)), end = toDateKey(new Date(t + 864e5));
+    const d = await fetchJSON(`https://api.existenz.ch/apiv1/hydro/daterange?locations=${st.id}&parameters=temperature&startdate=${start}&enddate=${end}&app=fishtracker`, {}, 9000);
+    const near = (d.payload || []).filter((x) => x.val != null).map((x) => [Math.abs(x.timestamp * 1000 - t), x.val]).sort((a, b) => a[0] - b[0])[0];
+    return near && near[0] <= 90 * 60e3 ? near[1] : null;
+  }
+
+  // Wetter und Wassertemperatur zum Fangzeitpunkt speichern – fehlt eine Quelle, bleibt das Feld leer
   async function captureConditions(rec) {
+    delete rec.weather; delete rec.waterTemp;
     const t = Date.parse(rec.date);
+    if (isNaN(t) || t > Date.now() + 3600e3) return;
     const w = waterById(rec.waterId);
     const ld = w && lakeData(w);
     if (ld) { const v = surfaceAt(ld, t); if (v != null) rec.waterTemp = Math.round(v * 10) / 10; }
-    if (!navigator.onLine || Math.abs(t - Date.now()) > 3 * 3600e3 || rec.lat == null) return;
-    try {
-      const fc = await Promise.race([forecast({ lat: rec.lat, lng: rec.lng }), new Promise((_, r) => setTimeout(() => r(new Error("timeout")), 5000))]);
-      const c = fc.current;
-      rec.weather = { temp: c.temperature_2m, code: c.weather_code, wind: c.wind_speed_10m, dir: c.wind_direction_10m, clouds: c.cloud_cover, pressure: c.surface_pressure };
-      const tr = pressureTrend(fc);
-      if (tr) rec.weather.pressureTrend = Math.round(tr.past * 10) / 10;
-    } catch { /* ohne Wetter speichern */ }
-    if (rec.waterTemp == null && w) {
-      try { const h = await hydroFor(w, rec); if (h?.temperature) rec.waterTemp = h.temperature.val; } catch { /* egal */ }
+    if (!navigator.onLine || rec.lat == null) return;
+    try { rec.weather = await weatherAt(rec.lat, rec.lng, t); } catch { /* ohne Wetter speichern */ }
+    if (rec.waterTemp == null && w && !ld) {
+      try { const v = await riverTempAt(w, rec, t); if (v != null) rec.waterTemp = v; } catch { /* egal */ }
     }
+  }
+
+  // Für ältere Fänge ohne Wetter nachträglich die damaligen Bedingungen holen
+  async function backfillConditions() {
+    const todo = state.catches.filter((c) => c.lat != null && !c.weather);
+    if (!todo.length) { toast("Alle Fänge haben bereits Wetterdaten"); return; }
+    if (!navigator.onLine) { toast("Dafür wird Internet benötigt"); return; }
+    let ok = 0;
+    for (const [i, c] of todo.entries()) {
+      toast(`Lade Wetter … ${i + 1} von ${todo.length}`, 4000);
+      const rec = { ...c };
+      const keepTemp = rec.waterTemp;
+      await captureConditions(rec);
+      if (rec.waterTemp == null && keepTemp != null && !lakeData(waterById(rec.waterId))) rec.waterTemp = keepTemp;
+      if (rec.weather) ok++;
+      await DB.put("catches", rec);
+      await new Promise((r) => setTimeout(r, 350));
+    }
+    await reload();
+    toast(`Wetter für ${ok} von ${todo.length} Fängen ergänzt`);
+  }
+
+  // Einmalig: Seetemperaturen entfernen, die bei viel später eingetragenen Fängen fälschlich gespeichert wurden
+  async function fixOldLakeTemps() {
+    if (store.get("fixLakeTemp1", false)) return;
+    for (const c of state.catches) {
+      const t = Date.parse(c.date), w = waterById(c.waterId);
+      if (c.waterTemp != null && w && lakeData(w) && c.created && c.created - t > 3 * 864e5) {
+        delete c.waterTemp; await DB.put("catches", c);
+      }
+    }
+    store.set("fixLakeTemp1", true);
   }
 
   function resizeImage(file, max, quality) {
@@ -1813,6 +1872,9 @@
           <button type="button" class="btn" id="btnExport">${ic("download", "sm")}Backup exportieren</button>
           <label class="btn">${ic("upload", "sm")}Backup importieren<input type="file" id="importFile" accept="application/json" hidden></label>
         </div>
+        <h3>Bedingungen nachladen</h3>
+        <p class="small muted" style="margin-bottom:10px">Holt für Fänge ohne Wetterdaten das Wetter zum Fangzeitpunkt aus dem Wetterarchiv (${state.catches.filter((c) => c.lat != null && !c.weather).length} Fänge betroffen).</p>
+        <button type="button" class="btn" id="btnBackfill" style="margin-bottom:22px">${ic("cloud-sun", "sm")}Wetter für ältere Fänge nachladen</button>
         ${!standalone ? `<h3>Als App installieren</h3><p class="small muted" style="margin-bottom:10px">${isIOS ? "In Safari unten auf «Teilen» tippen und «Zum Home-Bildschirm» wählen." : "Installiere Fischerglück auf dem Startbildschirm – die App funktioniert dann auch offline."}</p>
           ${deferredPrompt ? `<button type="button" class="btn btn-primary" id="btnInstall" style="margin-bottom:22px">Installieren</button>` : `<div style="margin-bottom:22px"></div>`}` : ""}
         <h3>Beta-Funktionen</h3>
@@ -1829,6 +1891,7 @@
         <p class="source">Fischerglück · Beisszeiten nach Solunar-Theorie (SunCalc). Alle Angaben ohne Gewähr.</p>`,
     });
     $("#btnExport").onclick = exportBackup;
+    $("#btnBackfill").onclick = () => { sheet.close(); backfillConditions(); };
     $("#optHotspots").onchange = (e) => { store.set("hotspots", e.target.checked); renderAll(); toast(e.target.checked ? "Hotspots eingeschaltet" : "Hotspots ausgeschaltet"); };
     $("#importFile").onchange = importBackup;
     if ($("#btnInstall")) $("#btnInstall").onclick = async () => { deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null; sheet.close(); };
@@ -1896,6 +1959,7 @@
     await loadStatic();
     [state.catches, state.spots, state.waters] = await Promise.all([DB.all("catches"), DB.all("spots"), DB.all("waters")]);
     if (state.activeId && !waterById(state.activeId)) state.activeId = null;
+    await fixOldLakeTemps();
     await setActive(state.activeId);
     showView(store.get("view", "home"));
     const w = activeWater();
