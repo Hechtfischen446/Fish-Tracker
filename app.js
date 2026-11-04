@@ -978,7 +978,10 @@
   // Abschaltbar in den Einstellungen. Fasst Fänge im Umkreis von ~150 m zusammen und
   // vergleicht die heutigen Bedingungen mit denen deiner bisherigen Fänge.
   const hotspotsOn = () => store.get("hotspots", true);
-  state.live = { temp: {}, dp: {} };
+  state.live = { temp: {}, dp: {}, wx: {} };
+  // Wetterlage grob einteilen (WMO-Code)
+  const wxType = (c) => (c == null ? null : c >= 95 ? "Gewitter" : (c >= 71 && c <= 77) || c === 85 || c === 86 ? "Schnee" : (c >= 51 && c <= 67) || (c >= 80 && c <= 82) ? "Regen" : "trocken");
+  const cloudName = (v) => (v == null ? "" : v >= 75 ? "bedeckt" : v >= 35 ? "teils bewölkt" : "sonnig");
   const circ = (a, b, period) => { const d = Math.abs(a - b) % period; return Math.min(d, period - d); };
 
   function findHotspots(catches) {
@@ -1016,6 +1019,7 @@
       month: now.getMonth(),
       phase: SunCalc.getMoonIllumination(now).phase,
       dp: w ? state.live.dp[w.id] ?? null : null,
+      wx: w ? state.live.wx[w.id] ?? null : null, // aktuelles Wetter (Open-Meteo / MeteoSwiss ICON)
     };
   }
 
@@ -1029,6 +1033,16 @@
       parts.moon = [1, Math.exp(-((circ(SunCalc.getMoonIllumination(d).phase, cond.phase, 1) / 0.15) ** 2))];
     }
     if (cond.dp != null && c.weather?.pressureTrend != null) parts.press = [1, Math.sign(Math.round(cond.dp)) === Math.sign(Math.round(c.weather.pressureTrend)) ? 1 : 0.3];
+    // Wetter beim Fang vs. Wetter jetzt
+    const cw = c.weather, nw = cond.wx;
+    if (cw && nw) {
+      if (cw.temp != null && nw.temperature_2m != null) parts.air = [1, Math.exp(-(((cw.temp - nw.temperature_2m) / 4) ** 2))];
+      if (cw.wind != null && nw.wind_speed_10m != null) parts.wind = [1, Math.exp(-(((cw.wind - nw.wind_speed_10m) / 8) ** 2))];
+      if (cw.dir != null && nw.wind_direction_10m != null && cw.wind >= 5 && nw.wind_speed_10m >= 5) parts.dir = [1.5, Math.exp(-((circ(cw.dir, nw.wind_direction_10m, 360) / 45) ** 2))];
+      if (cw.clouds != null && nw.cloud_cover != null) parts.clouds = [1, Math.exp(-(((cw.clouds - nw.cloud_cover) / 30) ** 2))];
+      const a = wxType(cw.code), b = wxType(nw.weather_code);
+      if (a && b) parts.type = [1, a === b ? 1 : 0.3];
+    }
     const w = Object.values(parts).reduce((a, [g]) => a + g, 0);
     return { v: w ? Object.values(parts).reduce((a, [g, x]) => a + g * x, 0) / w : 0, parts };
   }
@@ -1043,11 +1057,19 @@
       const good = sims.filter((x) => x.v >= 0.5);
       const avgPart = (k) => { const a = good.filter((x) => x.parts[k]).map((x) => x.parts[k][1]); return a.length ? a.reduce((p, q) => p + q, 0) / a.length : 0; };
       const reasons = [];
-      if (avgPart("temp") >= 0.6) reasons.push(`ähnliche Wassertemperatur (${nf(h.tempMin, 0)}–${nf(h.tempMax, 0)} °C)`);
+      if (avgPart("temp") >= 0.6) reasons.push(`ähnliche Wassertemperatur (${Math.round(h.tempMin) === Math.round(h.tempMax) ? `ca. ${nf(h.tempMin, 0)}` : `${nf(h.tempMin, 0)}–${nf(h.tempMax, 0)}`} °C)`);
       if (avgPart("hour") >= 0.6) { const hrs = good.map((x) => new Date(x.c.date).getHours()); reasons.push(`gleiche Tageszeit (${pad(Math.min(...hrs))}–${pad(Math.max(...hrs) + 1)} Uhr)`); }
       if (avgPart("month") >= 0.6) reasons.push("gleiche Jahreszeit");
       if (avgPart("moon") >= 0.6) reasons.push("ähnliche Mondphase");
       if (avgPart("press") >= 0.9) reasons.push("gleicher Luftdrucktrend");
+      const nw = cond.wx;
+      if (nw) {
+        if (avgPart("dir") >= 0.6) reasons.push(`Wind aus ${dirName(nw.wind_direction_10m)} wie bei deinen Fängen`);
+        else if (avgPart("wind") >= 0.7) reasons.push(nw.wind_speed_10m < 8 ? "ähnlich wenig Wind" : "ähnlich starker Wind");
+        if (avgPart("clouds") >= 0.7) reasons.push(`ähnliche Bewölkung (${cloudName(nw.cloud_cover)})`);
+        if (avgPart("type") >= 0.9 && wxType(nw.weather_code) !== "trocken") reasons.push(`gleiche Wetterlage (${wxType(nw.weather_code)})`);
+        if (avgPart("air") >= 0.7) reasons.push("ähnliche Lufttemperatur");
+      }
       const bestC = sims[0].c;
       return { ...h, n: items.length, score, reasons, tip: { technique: bestC.technique || h.technique, bait: bestC.bait || h.bait, depth: bestC.depth ?? h.depth } };
     }).filter(Boolean).sort((a, b) => b.score - a.score);
@@ -1082,7 +1104,7 @@
           <div class="row" style="margin-top:6px"><button type="button" class="btn btn-sm" data-hs-map="${h.lat},${h.lng}">${ic("map", "xs")}Auf Karte</button>
             ${h.spot ? "" : `<button type="button" class="btn btn-sm" data-hs-save="${h.lat},${h.lng}" data-hs-name="${esc("Hotspot " + h.species[0])}">${ic("pin", "xs")}Als Spot speichern</button>`}</div>
         </div>`; }).join("")}
-      <p class="source">Berechnet aus deinen Fängen: Wassertemperatur, Tageszeit, Jahreszeit, Mondphase und Luftdrucktrend im Vergleich zu heute.</p>`;
+      <p class="source">Berechnet aus deinen Fängen im Vergleich zu jetzt: Wassertemperatur, Tageszeit, Jahreszeit, Mondphase, Luftdrucktrend, Wind (Stärke und Richtung), Bewölkung, Wetterlage und Lufttemperatur.${cond.wx ? "" : " Wetter wird geladen …"}</p>`;
   }
 
   function renderHotspotCard(w) {
@@ -1358,6 +1380,12 @@
 
   async function fillHomeLive(w) {
     renderHotspotCard(w);
+    if (hotspotsOn() && navigator.onLine) forecast({ lat: w.lat, lng: w.lng }).then((fc) => {
+      state.live.wx[w.id] = fc.current;
+      const tr = pressureTrend(fc);
+      if (tr) state.live.dp[w.id] = tr.past;
+      if (activeWater() === w) renderHotspotCard(w);
+    }).catch(() => {});
     $("#btnWxDays")?.addEventListener("click", () => {
       state.wxOpen = !state.wxOpen;
       store.set("wxOpen", state.wxOpen);
