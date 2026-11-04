@@ -414,13 +414,19 @@
     svg.addEventListener("pointermove", (e) => {
       if (e.pointerType === "mouse" || active) { clearTimeout(chartTipTimer); queue(e); }
     });
-    const end = (e, delay) => {
+    // Beim Loslassen den Punkt und die Anzeige sofort entfernen
+    const end = (e) => {
       active = false;
       try { svg.releasePointerCapture(e.pointerId); } catch { /* egal */ }
-      if (e.pointerType !== "mouse") { clearTimeout(chartTipTimer); chartTipTimer = setTimeout(hide, delay); }
+      if (e.pointerType !== "mouse") {
+        clearTimeout(chartTipTimer);
+        if (raf) { cancelAnimationFrame(raf); raf = 0; }
+        last = null;
+        hide();
+      }
     };
-    svg.addEventListener("pointerup", (e) => end(e, 4000));
-    svg.addEventListener("pointercancel", (e) => end(e, 2500));
+    svg.addEventListener("pointerup", end);
+    svg.addEventListener("pointercancel", end);
     svg.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") hide(); });
     svg._hideTip = hide;
   }
