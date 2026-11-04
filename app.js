@@ -593,7 +593,8 @@
   const spotLayer = L.layerGroup().addTo(map);
   const publicLayer = L.layerGroup();
   let outlineLayer = null;
-  const mapLayers = { catches: true, spots: true, public: false };
+  const mapLayers = { catches: true, spots: true, public: false, hotspots: true };
+  const hotspotLayer = L.layerGroup().addTo(map);
 
   const mkIcon = (kind, iconId) => L.divIcon({
     className: "", iconSize: kind === "public" ? [24, 24] : [30, 30], iconAnchor: kind === "public" ? [12, 12] : [15, 15], popupAnchor: [0, -14],
@@ -652,7 +653,26 @@
   });
 
   function renderMarkers() {
-    catchLayer.clearLayers(); spotLayer.clearLayers();
+    catchLayer.clearLayers(); spotLayer.clearLayers(); hotspotLayer.clearLayers();
+    const chip = $('#mapChips [data-layer="hotspots"]');
+    if (chip) chip.hidden = !hotspotsOn();
+    if (hotspotsOn() && mapLayers.hotspots) {
+      const w = activeWater();
+      const list = findHotspots(scopedCatches());
+      const ranked = rankHotspots(list, nowConditions(w), null);
+      ranked.forEach((h) => {
+        const i = list.findIndex((x) => x.lat === h.lat && x.lng === h.lng);
+        const el = document.createElement("div");
+        el.innerHTML = `<div class="pt">${esc(hotspotName(h, i))}</div><div class="ps">${h.n} Fänge · ${esc(h.species.slice(0, 3).join(", "))} · heute ${h.score}/100</div>
+          ${h.reasons.length ? `<p class="small">Passt heute: ${esc(h.reasons.join(", "))}</p>` : ""}
+          ${h.tip.technique || h.tip.bait ? `<p class="small">Tipp: ${esc([h.tip.technique, h.tip.bait].filter(Boolean).join(" mit "))}${h.tip.depth != null ? `, ca. ${nf(h.tip.depth, 0)} m` : ""}</p>` : ""}
+          <div class="row">${h.spot ? "" : `<button class="btn btn-primary btn-sm" data-a="s">Als Spot speichern</button>`}<button class="btn btn-sm" data-a="c">Fang hier</button></div>`;
+        el.querySelector('[data-a="s"]')?.addEventListener("click", () => openSpotForm({ lat: h.lat, lng: h.lng, name: "Hotspot " + h.species[0], waterId: h.waterId || state.activeId, notes: "Aus deinen Fängen erkannter Hotspot." }));
+        el.querySelector('[data-a="c"]').addEventListener("click", () => openCatchForm({ lat: h.lat, lng: h.lng, waterId: h.waterId || state.activeId, spotId: h.spot?.id }));
+        const col = h.score >= 60 ? "#3df5b0" : h.score >= 40 ? "#f2a93b" : "#18d4e6";
+        L.circle([h.lat, h.lng], { radius: Math.min(220, 70 + h.n * 25), color: col, weight: 2, opacity: .9, fillColor: col, fillOpacity: .16, dashArray: "4 4" }).bindPopup(el).addTo(hotspotLayer);
+      });
+    }
     if (mapLayers.catches) scopedCatches().filter((c) => c.lat != null).forEach((c) => {
       const el = document.createElement("div");
       el.innerHTML = `<div class="pt">${esc(c.species)}${c.length ? ` · ${nf(c.length)} cm` : ""}</div><div class="ps">${esc(fmtDateTime(c.date))}${c.waterTemp != null ? ` · Wasser ${nf(c.waterTemp)} °C` : ""}</div>
@@ -954,6 +974,134 @@
     });
   }
 
+  // ───────────────────────── Hotspots & Empfehlungen (Beta) ─────────────────────────
+  // Abschaltbar in den Einstellungen. Fasst Fänge im Umkreis von ~150 m zusammen und
+  // vergleicht die heutigen Bedingungen mit denen deiner bisherigen Fänge.
+  const hotspotsOn = () => store.get("hotspots", true);
+  state.live = { temp: {}, dp: {} };
+  const circ = (a, b, period) => { const d = Math.abs(a - b) % period; return Math.min(d, period - d); };
+
+  function findHotspots(catches) {
+    const clusters = [];
+    for (const c of catches.filter((x) => x.lat != null && x.lng != null)) {
+      let best = null, bd = Infinity;
+      for (const cl of clusters) { const d = km(cl, c); if (d < bd) { bd = d; best = cl; } }
+      if (best && bd <= 0.15) {
+        best.items.push(c);
+        const n = best.items.length;
+        best.lat += (c.lat - best.lat) / n; best.lng += (c.lng - best.lng) / n;
+      } else clusters.push({ lat: c.lat, lng: c.lng, items: [c] });
+    }
+    return clusters.filter((cl) => cl.items.length >= 2).map((cl) => {
+      const spot = state.spots.map((sp) => ({ sp, d: km(sp, cl) })).filter((x) => x.d <= 0.2).sort((a, b) => a.d - b.d)[0]?.sp || null;
+      const depths = cl.items.map((c) => c.depth).filter((v) => v != null);
+      const temps = cl.items.map((c) => c.waterTemp).filter((v) => v != null);
+      const wid = topBy(cl.items, "waterId")[0]?.[0] || null;
+      return {
+        ...cl, spot, waterId: wid,
+        species: topBy(cl.items, "species").map((e) => e[0]),
+        bait: topBy(cl.items, "bait")[0]?.[0] || "",
+        technique: topBy(cl.items, "technique")[0]?.[0] || "",
+        depth: depths.length ? depths.reduce((a, b) => a + b, 0) / depths.length : null,
+        tempMin: temps.length ? Math.min(...temps) : null, tempMax: temps.length ? Math.max(...temps) : null,
+      };
+    });
+  }
+
+  function nowConditions(w) {
+    const now = new Date(), ld = w && lakeData(w);
+    return {
+      temp: ld ? surfaceAt(ld) : (w ? state.live.temp[w.id] ?? null : null),
+      hour: now.getHours() + now.getMinutes() / 60,
+      month: now.getMonth(),
+      phase: SunCalc.getMoonIllumination(now).phase,
+      dp: w ? state.live.dp[w.id] ?? null : null,
+    };
+  }
+
+  // Ähnlichkeit eines Fangs mit den heutigen Bedingungen (0–1) inkl. Einzelwerten für die Begründung
+  function similarity(c, cond) {
+    const d = new Date(c.date), parts = {};
+    if (cond.temp != null && c.waterTemp != null) parts.temp = [3, Math.exp(-(((c.waterTemp - cond.temp) / 2.5) ** 2))];
+    if (!isNaN(d)) {
+      parts.hour = [2, Math.exp(-((circ(d.getHours() + d.getMinutes() / 60, cond.hour, 24) / 2.5) ** 2))];
+      parts.month = [2, Math.exp(-((circ(d.getMonth(), cond.month, 12) / 1.5) ** 2))];
+      parts.moon = [1, Math.exp(-((circ(SunCalc.getMoonIllumination(d).phase, cond.phase, 1) / 0.15) ** 2))];
+    }
+    if (cond.dp != null && c.weather?.pressureTrend != null) parts.press = [1, Math.sign(Math.round(cond.dp)) === Math.sign(Math.round(c.weather.pressureTrend)) ? 1 : 0.3];
+    const w = Object.values(parts).reduce((a, [g]) => a + g, 0);
+    return { v: w ? Object.values(parts).reduce((a, [g, x]) => a + g * x, 0) / w : 0, parts };
+  }
+
+  function rankHotspots(list, cond, species) {
+    return list.map((h) => {
+      const items = species ? h.items.filter((c) => c.species === species) : h.items;
+      if (!items.length) return null;
+      const sims = items.map((c) => ({ c, ...similarity(c, cond) })).sort((a, b) => b.v - a.v);
+      const total = sims.reduce((a, x) => a + x.v, 0);
+      const score = Math.round(100 * (1 - Math.exp(-total / 1.6)));
+      const good = sims.filter((x) => x.v >= 0.5);
+      const avgPart = (k) => { const a = good.filter((x) => x.parts[k]).map((x) => x.parts[k][1]); return a.length ? a.reduce((p, q) => p + q, 0) / a.length : 0; };
+      const reasons = [];
+      if (avgPart("temp") >= 0.6) reasons.push(`ähnliche Wassertemperatur (${nf(h.tempMin, 0)}–${nf(h.tempMax, 0)} °C)`);
+      if (avgPart("hour") >= 0.6) { const hrs = good.map((x) => new Date(x.c.date).getHours()); reasons.push(`gleiche Tageszeit (${pad(Math.min(...hrs))}–${pad(Math.max(...hrs) + 1)} Uhr)`); }
+      if (avgPart("month") >= 0.6) reasons.push("gleiche Jahreszeit");
+      if (avgPart("moon") >= 0.6) reasons.push("ähnliche Mondphase");
+      if (avgPart("press") >= 0.9) reasons.push("gleicher Luftdrucktrend");
+      const bestC = sims[0].c;
+      return { ...h, n: items.length, score, reasons, tip: { technique: bestC.technique || h.technique, bait: bestC.bait || h.bait, depth: bestC.depth ?? h.depth } };
+    }).filter(Boolean).sort((a, b) => b.score - a.score);
+  }
+
+  const hotspotName = (h, i) => h.spot ? h.spot.name : `Hotspot ${i + 1}`;
+
+  function hotspotCardHtml(w) {
+    const cs = state.catches.filter((c) => c.waterId === w.id);
+    const withPos = cs.filter((c) => c.lat != null);
+    const hs = findHotspots(cs);
+    const head = `<div class="card-head"><h3>Hotspots · Empfehlung heute</h3><span class="pill pill-accent">Beta</span></div>`;
+    if (!hs.length) {
+      return head + `<p class="small muted">${withPos.length < 2
+        ? `Trage Fänge mit GPS-Position ein (bisher ${withPos.length} hier). Sobald du an einer Stelle mehrmals fängst, erkennt die App deinen Hotspot und empfiehlt ihn bei passenden Bedingungen.`
+        : "Deine Fänge liegen noch verstreut. Sobald du an einer Stelle (im Umkreis von ca. 150 m) mehrmals fängst, erscheint hier ein Hotspot."}</p>`;
+    }
+    const cond = nowConditions(w);
+    const speciesAll = [...new Set(hs.flatMap((h) => h.species))];
+    const sel = speciesAll.includes(state.hsSpecies) ? state.hsSpecies : null;
+    const ranked = rankHotspots(hs, cond, sel).slice(0, 3);
+    const order = hs.map((h) => h.lat + "," + h.lng);
+    return head + `
+      ${speciesAll.length > 1 ? `<div class="chips" style="margin-bottom:10px">${[null, ...speciesAll].map((n) => `<button type="button" class="chip ${n === sel ? "on" : ""}" data-hs-species="${esc(n || "")}">${esc(n || "Alle Arten")}</button>`).join("")}</div>` : ""}
+      ${ranked.map((h) => { const i = order.indexOf(h.lat + "," + h.lng); return `
+        <div class="pdetail">
+          <div class="row" style="justify-content:space-between"><span class="when">${esc(hotspotName(h, i))}</span>
+            <span class="pidx" style="background:${h.score >= 60 ? "var(--good)" : h.score >= 40 ? "var(--warn)" : "var(--surface-2)"};color:${h.score >= 40 ? "#fff" : "var(--ink-2)"}">${h.score}</span></div>
+          <div class="small muted">${h.n} Fänge · ${esc(h.species.slice(0, 3).join(", "))}${h.depth != null ? ` · Ø ${nf(h.depth, 0)} m tief` : ""}</div>
+          ${h.reasons.length ? `<div class="small">Passt heute: ${esc(h.reasons.join(", "))}</div>` : `<div class="small muted">Heute weichen die Bedingungen von deinen Fängen hier ab.</div>`}
+          ${h.tip.technique || h.tip.bait ? `<div class="small">Tipp: ${esc([h.tip.technique, h.tip.bait].filter(Boolean).join(" mit "))}${h.tip.depth != null ? `, ca. ${nf(h.tip.depth, 0)} m` : ""}</div>` : ""}
+          <div class="row" style="margin-top:6px"><button type="button" class="btn btn-sm" data-hs-map="${h.lat},${h.lng}">${ic("map", "xs")}Auf Karte</button>
+            ${h.spot ? "" : `<button type="button" class="btn btn-sm" data-hs-save="${h.lat},${h.lng}" data-hs-name="${esc("Hotspot " + h.species[0])}">${ic("pin", "xs")}Als Spot speichern</button>`}</div>
+        </div>`; }).join("")}
+      <p class="source">Berechnet aus deinen Fängen: Wassertemperatur, Tageszeit, Jahreszeit, Mondphase und Luftdrucktrend im Vergleich zu heute.</p>`;
+  }
+
+  function renderHotspotCard(w) {
+    const el = $("#hsCard");
+    if (!el) return;
+    if (!hotspotsOn() || !w) { el.hidden = true; return; }
+    el.hidden = false;
+    el.innerHTML = hotspotCardHtml(w);
+  }
+
+  document.addEventListener("click", (e) => {
+    const sp = e.target.closest("[data-hs-species]");
+    if (sp) { state.hsSpecies = sp.dataset.hsSpecies || null; renderHotspotCard(activeWater()); return; }
+    const mp = e.target.closest("[data-hs-map]");
+    if (mp) { const [la, lo] = mp.dataset.hsMap.split(",").map(Number); showView("map"); setTimeout(() => map.flyTo([la, lo], 16), 80); return; }
+    const sv = e.target.closest("[data-hs-save]");
+    if (sv) { const [la, lo] = sv.dataset.hsSave.split(",").map(Number); openSpotForm({ lat: la, lng: lo, name: sv.dataset.hsName, waterId: state.activeId, notes: "Aus deinen Fängen erkannter Hotspot." }); }
+  });
+
   const catchRow = (c) => `<button type="button" class="li" data-catch="${c.id}">
       ${c.photo ? `<img class="thumb" src="${c.photo}" alt="">` : `<span class="thumb">${ic("fish")}</span>`}
       <span class="body"><span class="t">${esc(c.species)}${c.length ? ` · ${nf(c.length)} cm` : ""}${c.weight ? ` · ${nf(c.weight, 2)} kg` : ""}</span>
@@ -1138,6 +1286,8 @@
         ${sol.periods.filter((p) => p.kind === "major").map((p) => `<div class="period"><span class="when">${hm(p.from)} – ${hm(p.to)}</span><span class="muted small">Hauptbeisszeit${p.twilight ? " · Dämmerung" : ""}</span></div>`).join("")}
       </div>
 
+      <div class="card" id="hsCard" hidden></div>
+
       <div class="card">
         <div class="card-head"><h3>Spots</h3><button class="link-btn" data-action="new-spot">+ Spot</button></div>
         ${sp.length ? `<div class="list" style="border:0;border-radius:0;margin:0 -16px -16px">${sp.map((s) => { const n = state.catches.filter((c) => c.spotId === s.id).length; return `
@@ -1207,6 +1357,7 @@
   }
 
   async function fillHomeLive(w) {
+    renderHotspotCard(w);
     $("#btnWxDays")?.addEventListener("click", () => {
       state.wxOpen = !state.wxOpen;
       store.set("wxOpen", state.wxOpen);
@@ -1223,6 +1374,7 @@
       const st = (x) => `${esc(x.station.name)} · ${new Date(x.t).toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" })}`;
       if (h?.height) setTile("tLevel", `${nf(h.height.val, 2)}<small>m ü. M.</small>`, `BAFU · ${st(h.height)}`); else setTile("tLevel", null, "Keine Station");
       if ($("#tFlow")) { if (h?.flow) setTile("tFlow", `${nf(h.flow.val, 0)}<small>m³/s</small>`, `BAFU · ${st(h.flow)}`); else setTile("tFlow", null, "Keine Station"); }
+      if (h?.temperature) { state.live.temp[w.id] = h.temperature.val; if (!ld) renderHotspotCard(w); }
       if (!ld) { if (h?.temperature) setTile("tWater", `${nf(h.temperature.val)}<small>°C</small>`, `BAFU · ${st(h.temperature)}`); else setTile("tWater", null, "Keine Messung"); }
     }).catch(() => { setTile("tLevel", null, "Nicht erreichbar"); if (!ld) setTile("tWater", null, "Nicht erreichbar"); if ($("#tFlow")) setTile("tFlow", null, "Nicht erreichbar"); });
     if (!ld && !hydroStations(w).length) setTile("tWater", null, "Keine Messung");
@@ -1235,6 +1387,7 @@
       setTile("tPress", m.qff != null ? `${nf(m.qff, 0)}<small>hPa</small>` : null, "Meeresniveau (QFF)");
       forecast({ lat: w.lat, lng: w.lng }).then((fc) => {
         const tr = pressureTrend(fc);
+        if (tr) { state.live.dp[w.id] = tr.past; renderHotspotCard(w); }
         if (tr && m.qff != null && activeWater() === w) setTile("tPress", `${nf(m.qff, 0)}<small>hPa</small>`, tr.past <= -1 ? "↘ fallend (3 h)" : tr.past >= 1 ? "↗ steigend (3 h)" : "→ stabil (3 h)");
       }).catch(() => {});
     }).catch(() => ["tAir", "tWind", "tPress"].forEach((id) => setTile(id, null, navigator.onLine ? "Nicht erreichbar" : "Offline")));
@@ -1634,6 +1787,9 @@
         </div>
         ${!standalone ? `<h3>Als App installieren</h3><p class="small muted" style="margin-bottom:10px">${isIOS ? "In Safari unten auf «Teilen» tippen und «Zum Home-Bildschirm» wählen." : "Installiere Fischerglück auf dem Startbildschirm – die App funktioniert dann auch offline."}</p>
           ${deferredPrompt ? `<button type="button" class="btn btn-primary" id="btnInstall" style="margin-bottom:22px">Installieren</button>` : `<div style="margin-bottom:22px"></div>`}` : ""}
+        <h3>Beta-Funktionen</h3>
+        <div class="list" style="margin-bottom:22px"><label class="li"><input type="checkbox" id="optHotspots" ${hotspotsOn() ? "checked" : ""} style="width:auto">
+          <span class="body"><span class="t">Hotspots & Empfehlungen</span><span class="s" style="white-space:normal">Erkennt aus deinen Fängen Stellen, an denen du mehrmals gefangen hast, und empfiehlt sie bei ähnlichen Bedingungen.</span></span></label></div>
         <h3>Datenquellen</h3>
         <ul class="small muted" style="padding-left:18px;margin:0 0 10px">
           <li>Wetterprognose: MeteoSwiss ICON-CH über <a href="https://open-meteo.com" target="_blank" rel="noopener">Open-Meteo</a></li>
@@ -1645,6 +1801,7 @@
         <p class="source">Fischerglück · Beisszeiten nach Solunar-Theorie (SunCalc). Alle Angaben ohne Gewähr.</p>`,
     });
     $("#btnExport").onclick = exportBackup;
+    $("#optHotspots").onchange = (e) => { store.set("hotspots", e.target.checked); renderAll(); toast(e.target.checked ? "Hotspots eingeschaltet" : "Hotspots ausgeschaltet"); };
     $("#importFile").onchange = importBackup;
     if ($("#btnInstall")) $("#btnInstall").onclick = async () => { deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null; sheet.close(); };
   });
