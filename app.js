@@ -402,13 +402,26 @@
   // Interaktion für Diagramme: Maus = Hover, Finger = Tippen/Wischen; der Wert bleibt nach dem Loslassen stehen
   let chartTipTimer;
   function chartInteract(svg, show, hide) {
-    svg.style.touchAction = "pan-y"; // waagrecht wischen bewegt den Cursor, senkrecht scrollt die Seite
-    const onMove = (e) => { show(e); clearTimeout(chartTipTimer); };
-    svg.addEventListener("pointerdown", onMove);
-    svg.addEventListener("pointermove", (e) => { if (e.pointerType === "mouse" || e.buttons) onMove(e); });
+    svg.style.touchAction = "pan-y"; // waagrecht wischen bewegt den Punkt, senkrecht scrollt die Seite
+    let raf = 0, last = null, active = false;
+    const frame = () => { raf = 0; if (last) show(last); };
+    const queue = (e) => { last = { clientX: e.clientX, clientY: e.clientY, pointerType: e.pointerType }; if (!raf) raf = requestAnimationFrame(frame); };
+    svg.addEventListener("pointerdown", (e) => {
+      active = true; clearTimeout(chartTipTimer);
+      try { svg.setPointerCapture(e.pointerId); } catch { /* ältere Browser */ }
+      queue(e);
+    });
+    svg.addEventListener("pointermove", (e) => {
+      if (e.pointerType === "mouse" || active) { clearTimeout(chartTipTimer); queue(e); }
+    });
+    const end = (e, delay) => {
+      active = false;
+      try { svg.releasePointerCapture(e.pointerId); } catch { /* egal */ }
+      if (e.pointerType !== "mouse") { clearTimeout(chartTipTimer); chartTipTimer = setTimeout(hide, delay); }
+    };
+    svg.addEventListener("pointerup", (e) => end(e, 4000));
+    svg.addEventListener("pointercancel", (e) => end(e, 2500));
     svg.addEventListener("pointerleave", (e) => { if (e.pointerType === "mouse") hide(); });
-    svg.addEventListener("pointerup", (e) => { if (e.pointerType !== "mouse") { clearTimeout(chartTipTimer); chartTipTimer = setTimeout(hide, 4000); } });
-    svg.addEventListener("pointercancel", () => { clearTimeout(chartTipTimer); chartTipTimer = setTimeout(hide, 1500); });
     svg._hideTip = hide;
   }
   document.addEventListener("pointerdown", (e) => {
@@ -460,19 +473,33 @@
     }
     const now = Date.now();
     if (now > x0 && now < x1) s += `<line class="now-l" x1="${X(now)}" x2="${X(now)}" y1="${m.t}" y2="${H - m.b}"/><text class="axis-t" x="${X(now)}" y="${m.t - 6}" text-anchor="middle">jetzt</text>`;
-    s += `<line class="cross" x1="0" x2="0" y1="${m.t}" y2="${H - m.b}" visibility="hidden"/><circle class="dot" r="4" visibility="hidden"/>`;
+    s += `<line class="cross" x1="0" x2="0" y1="${m.t}" y2="${H - m.b}" visibility="hidden"/><circle class="dot" r="5.5" visibility="hidden"/>`;
     s += `<rect x="${m.l}" y="0" width="${W - m.l - m.r}" height="${H}" fill="transparent"/></svg><div class="tip" hidden></div>`;
     el.innerHTML = s;
     const svg = $("svg", el), tip = $(".tip", el), cross = $(".cross", el), dot = $(".dot", el);
     const move = (e) => {
-      const r = svg.getBoundingClientRect(), px = ((e.clientX - r.left) / r.width) * W;
+      const r = svg.getBoundingClientRect(), px = Math.max(m.l, Math.min(W - m.r, ((e.clientX - r.left) / r.width) * W));
       const t = x0 + ((px - m.l) / (W - m.l - m.r)) * (x1 - x0);
-      const p = pts.reduce((a, b) => (Math.abs(b[0] - t) < Math.abs(a[0] - t) ? b : a));
-      const cx = X(p[0]), cy = Y(p[1]);
+      let tt, v;
+      if (type === "bar") {
+        // Balken: auf den nächsten Balken einrasten
+        const p = pts.reduce((a, b) => (Math.abs(b[0] - t) < Math.abs(a[0] - t) ? b : a));
+        tt = p[0]; v = p[1];
+      } else {
+        // Linie: zwischen den Messpunkten interpolieren, damit der Punkt dem Finger flüssig folgt
+        let lo = 0, hi = pts.length - 1;
+        while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (pts[mid][0] <= t) lo = mid; else hi = mid; }
+        const [ta, va] = pts[lo], [tb, vb] = pts[hi];
+        const f = tb > ta ? Math.max(0, Math.min(1, (t - ta) / (tb - ta))) : 0;
+        tt = t; v = va + (vb - va) * f;
+      }
+      const cx = X(tt), cy = Y(v);
       cross.setAttribute("x1", cx); cross.setAttribute("x2", cx); cross.setAttribute("visibility", "visible");
       dot.setAttribute("cx", cx); dot.setAttribute("cy", cy); dot.setAttribute("visibility", type === "bar" ? "hidden" : "visible");
-      const label = unit ? `${nf(p[1], digits)} ${unit}` : `Index ${nf(p[1], digits)}`;
-      placeTip(tip, `${new Date(p[0]).toLocaleString("de-CH", { weekday: "short", hour: "2-digit", minute: "2-digit" })} · ${label}`, (cx / W) * r.width, (cy / H) * r.height, r.width);
+      const shown = type === "bar" ? new Date(tt) : new Date(Math.round(tt / 600e3) * 600e3); // auf 10 Minuten runden
+      const label = unit ? `${nf(v, digits)} ${unit}` : `Index ${nf(v, digits)}`;
+      // Anzeige fest über dem Diagramm – nicht unter dem Finger und ohne Auf-und-ab-Springen
+      placeTip(tip, `${shown.toLocaleString("de-CH", { weekday: "short", hour: "2-digit", minute: "2-digit" })} · ${label}`, (cx / W) * r.width, (m.t / H) * r.height, r.width);
     };
     const leave = () => { tip.hidden = true; cross.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); };
     chartInteract(svg, move, leave);
@@ -500,11 +527,14 @@
     const svg = $("svg", el), tip = $(".tip", el), cross = $(".cross", el), dot = $(".dot", el);
     const move = (e) => {
       const r = svg.getBoundingClientRect(), py = ((e.clientY - r.top) / r.height) * H;
-      const d = ((py - m.t) / (H - m.t - m.b)) * maxDepth;
-      const p = pts.reduce((a, b) => (Math.abs(b[0] - d) < Math.abs(a[0] - d) ? b : a));
+      const d = Math.max(pts[0][0], Math.min(pts[pts.length - 1][0], ((py - m.t) / (H - m.t - m.b)) * maxDepth));
+      let lo = 0, hi = pts.length - 1;
+      while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (pts[mid][0] <= d) lo = mid; else hi = mid; }
+      const f = pts[hi][0] > pts[lo][0] ? (d - pts[lo][0]) / (pts[hi][0] - pts[lo][0]) : 0;
+      const p = [d, pts[lo][1] + (pts[hi][1] - pts[lo][1]) * f];
       cross.setAttribute("y1", Y(p[0])); cross.setAttribute("y2", Y(p[0])); cross.setAttribute("visibility", "visible");
       dot.setAttribute("cx", X(p[1])); dot.setAttribute("cy", Y(p[0])); dot.setAttribute("visibility", "visible");
-      placeTip(tip, `${nf(p[0], 0)} m · ${nf(p[1], 1)} °C`, (X(p[1]) / W) * r.width, (Y(p[0]) / H) * r.height, r.width);
+      placeTip(tip, `${nf(p[0], p[0] < 10 ? 1 : 0)} m · ${nf(p[1], 1)} °C`, (X(p[1]) / W) * r.width, Math.max(28, (Y(p[0]) / H) * r.height - 18), r.width);
     };
     chartInteract(svg, move, () => { tip.hidden = true; cross.setAttribute("visibility", "hidden"); dot.setAttribute("visibility", "hidden"); });
   }
