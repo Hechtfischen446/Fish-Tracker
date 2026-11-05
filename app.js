@@ -632,6 +632,7 @@
     if (name === "catches") renderCatches();
     if (name === "forecast") renderForecast();
     if (name === "guide") renderGuide();
+    if (name === "ai") renderAdvisor();
   }
   function renderAll() { renderMarkers(); renderView(currentView); }
 
@@ -644,10 +645,69 @@
     img: { name: "Luftbild (SWISSIMAGE)", layer: L.tileLayer(swiss("ch.swisstopo.swissimage"), { maxNativeZoom: 19, maxZoom: 20, attribution: "© swisstopo" }) },
     osm: { name: "OpenStreetMap", layer: L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }) },
   };
+  // Zusatzebenen liegen in einer eigenen Ebene über der Grundkarte – so bleiben sie beim Wechsel der Grundkarte sichtbar
+  map.createPane("ovPane").style.zIndex = 250;
+  map.createPane("depthPane").style.zIndex = 240;
+  const depthLayer = L.layerGroup();
   const OVERLAYS = {
-    bathy: { name: "Seegrund-Relief (swissBATHY3D)", layer: L.tileLayer(swiss("ch.swisstopo.swissbathy3d-reliefschattierung", "png"), { maxNativeZoom: 18, maxZoom: 20, opacity: 0.75, attribution: "© swisstopo" }) },
-    seamarks: { name: "Seezeichen (OpenSeaMap)", layer: L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png", { maxZoom: 18, attribution: "© OpenSeaMap" }) },
+    depth: { name: "Tiefenkarte farbig (swissBATHY3D)", layer: depthLayer },
+    bathy: { name: "Seegrund-Relief (swissBATHY3D)", layer: L.tileLayer(swiss("ch.swisstopo.swissbathy3d-reliefschattierung", "png"), { pane: "ovPane", maxNativeZoom: 18, maxZoom: 20, opacity: 0.75, attribution: "© swisstopo" }) },
+    seamarks: { name: "Seezeichen (OpenSeaMap)", layer: L.tileLayer("https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png", { pane: "ovPane", maxZoom: 18, attribution: "© OpenSeaMap" }) },
   };
+  // Farbige Tiefenstufen – identisch mit scripts/make-bathy.py
+  const BATHY_BANDS = [[0, 3, "#e0352b"], [3, 6, "#f46d43"], [6, 10, "#fdae61"], [10, 15, "#fee08b"], [15, 20, "#d9ef8b"], [20, 30, "#91cf60"],
+    [30, 50, "#3fb68b"], [50, 75, "#2b9bc8"], [75, 100, "#2166ac"], [100, 150, "#4a3f9e"], [150, 200, "#3b1e7a"], [200, null, "#24104f"]];
+  const bandLabel = (b) => (b[1] == null ? `über ${b[0]} m` : `${b[0]}–${b[1]} m`);
+  let bathyIdx = null;
+  const bathyImgs = {}, bathyPix = {};
+  async function loadBathyIdx() {
+    if (!bathyIdx) bathyIdx = await fetch("data/bathy.json?v=1").then((r) => r.json()).catch(() => null);
+    return bathyIdx;
+  }
+  async function updateDepth() {
+    if (!map.hasLayer(depthLayer)) return;
+    const idx = await loadBathyIdx();
+    if (!idx) return;
+    const b = map.getBounds();
+    for (const [n, it] of Object.entries(idx)) {
+      if (!b.intersects(it.bounds)) continue;
+      if (!bathyImgs[n]) bathyImgs[n] = L.imageOverlay(it.file + "?v=1", it.bounds, { pane: "depthPane", opacity: 0.72, interactive: false, className: "bathy-img", attribution: "Tiefen: swissBATHY3D © swisstopo" });
+      if (!depthLayer.hasLayer(bathyImgs[n])) depthLayer.addLayer(bathyImgs[n]);
+    }
+  }
+  // Tiefenstufe an einem Punkt aus dem Farbbild ablesen
+  async function depthAt(lat, lng) {
+    const idx = await loadBathyIdx();
+    if (!idx) return null;
+    for (const [n, it] of Object.entries(idx)) {
+      const [[a0, o0], [a1, o1]] = it.bounds;
+      if (lat < a0 || lat > a1 || lng < o0 || lng > o1) continue;
+      if (!bathyPix[n]) bathyPix[n] = new Promise((res) => {
+        const img = new Image();
+        img.onload = () => { const c = document.createElement("canvas"); c.width = img.naturalWidth; c.height = img.naturalHeight; const g = c.getContext("2d", { willReadFrequently: true }); g.drawImage(img, 0, 0); res({ g, w: c.width, h: c.height }); };
+        img.onerror = () => res(null);
+        img.src = it.file + "?v=1";
+      });
+      const px = await bathyPix[n];
+      if (!px) continue;
+      const my = (la) => Math.log(Math.tan(Math.PI / 4 + (la * Math.PI) / 360));
+      const x = Math.floor(((lng - o0) / (o1 - o0)) * px.w), y = Math.floor(((my(a1) - my(lat)) / (my(a1) - my(a0))) * px.h);
+      const d = px.g.getImageData(Math.min(px.w - 1, Math.max(0, x)), Math.min(px.h - 1, Math.max(0, y)), 1, 1).data;
+      if (d[3] < 128) continue;
+      const hex = "#" + [d[0], d[1], d[2]].map((v) => v.toString(16).padStart(2, "0")).join("");
+      const band = BATHY_BANDS.find((b) => b[2] === hex);
+      if (band) return band;
+    }
+    return null;
+  }
+  function depthScale() {
+    const on = map.hasLayer(depthLayer);
+    $("#depthScale").hidden = !on;
+    if (on) $("#depthScale").innerHTML = `<b>Tiefe</b>${BATHY_BANDS.map((b) => `<span><i style="background:${b[2]}"></i>${b[1] == null ? `>${b[0]}` : b[1]}</span>`).join("")}<em>m</em>`;
+  }
+  depthLayer.on("add", () => { updateDepth(); depthScale(); });
+  depthLayer.on("remove", depthScale);
+  map.on("moveend", updateDepth);
   let baseKey = store.get("base", "lk");
   if (!BASES[baseKey]) baseKey = "lk";
   BASES[baseKey].layer.addTo(map);
@@ -701,15 +761,24 @@
           ${sym(`<div class="me-dot"></div>`, "Dein Standort", "")}
           ${sym(`<span class="lg-line" style="background:var(--accent)"></span>`, "Umriss des gewählten Gewässers", "")}
         </div>
-        <h3 style="margin-top:20px">Wassertiefe lesen</h3>
+        <h3 style="margin-top:20px">Wassertiefe in Farben</h3>
+        <p class="small muted" style="margin-bottom:10px">Ebene «Tiefenkarte farbig» – aus den Seegrund-Messungen swissBATHY3D von swisstopo. Tippst du auf der Karte in den See, zeigt das Fenster die Tiefe an dieser Stelle.</p>
+        <div class="depth-legend">${BATHY_BANDS.map((b) => `<div><i style="background:${b[2]}"></i><b>${bandLabel(b)}</b><span class="small muted">${b[1] != null && b[1] <= 3 ? "Ufer, Flachwasser" : b[1] === 6 ? "Krautzone" : b[1] === 10 ? "Scharkante" : b[1] === 20 ? "Halde" : b[1] === 50 ? "tiefe Halde" : b[0] >= 100 ? "Seebecken" : ""}</span></div>`).join("")}</div>
+        <button type="button" class="btn btn-sm" id="lgDepthOn" style="margin-top:12px">${map.hasLayer(depthLayer) ? "Tiefenkarte ist eingeschaltet" : "Tiefenkarte einschalten"}</button>
+        <p class="source">Farbige Tiefen gibt es für: Zürich-, Zuger-, Vierwaldstätter-, Ägeri-, Baldegger-, Bieler-, Boden-, Brienzer-, Hallwiler-, Lungerer-, Murten-, Neuenburger-, Rot-, Sarner-, Sempacher-, Sils-, Silvaplaner-, Thuner- und Walensee, Lac de Joux, Genfersee und Lago Maggiore (Schweizer Teil).</p>
+        <h3 style="margin-top:20px">Wassertiefe in anderen Karten</h3>
         <div class="legend-list">
           ${sym(`<svg viewBox="0 0 40 24" width="40" height="24"><path d="M2 20c8-14 28-14 36 0M8 20c6-9 18-9 24 0M14 20c3-4 9-4 12 0" fill="none" stroke="#2f8fd1" stroke-width="1.4"/></svg>`, "Tiefenlinien (Landeskarte)", "Blaue Linien im See verbinden Stellen gleicher Tiefe. Liegen sie dicht beieinander, fällt der Grund steil ab (Halde – oft gute Raubfisch-Stelle). Weit auseinander = flaches Plateau.")}
           ${sym(`<span style="color:#2f8fd1;font-weight:700;text-decoration:underline">414</span>`, "Unterstrichene blaue Zahl", "Höhe des Seespiegels in m ü. M.")}
           ${sym(`<span class="lg-ramp lg-relief"></span>`, "Seegrund-Relief (Ebene «swissBATHY3D»)", "Schattierung des Seegrunds: macht Kanten, Rinnen und Unterwasserberge sichtbar. Hell und dunkel zeigen die Beleuchtung, nicht die Tiefe.")}
           ${sym(`<span class="lg-ramp lg-aerial"></span>`, "Luftbild (SWISSIMAGE)", "Bei klarem Wasser: helles Türkis = flach (Sand, Kraut), dunkles Blau = tief. Gut, um Krautkanten und Scharkanten zu finden.")}
         </div>
-        <p class="source">Hinweis: Für Schweizer Seen gibt es keine frei verfügbare farbige Tiefenkarte. Die Tiefe zeigt die Landeskarte über Tiefenlinien; das Seegrund-Relief und das Luftbild ergänzen sie. Ebenen wechselst du über das Ebenen-Symbol.</p>`,
+        <p class="source">Ebenen wechselst du über das Ebenen-Symbol. Die farbige Tiefenkarte bezieht sich auf den mittleren Seespiegel – bei Hoch- oder Niedrigwasser verschieben sich die Werte entsprechend.</p>`,
     });
+    $("#lgDepthOn").onclick = () => {
+      if (!map.hasLayer(depthLayer)) { depthLayer.addTo(map); const ov = store.get("overlays", []); if (!ov.includes("depth")) store.set("overlays", [...ov, "depth"]); }
+      $("#sheet").close();
+    };
   });
   $("#btnFitWater").addEventListener("click", () => (activeWater() ? fitWater() : openWaterPicker()));
 
@@ -738,6 +807,7 @@
     el.innerHTML = `<div class="pt">${w ? esc(w.name) : "Position"}</div><div class="ps coord">${lat.toFixed(5)}, ${lng.toFixed(5)}</div>
       <div class="row"><button class="btn btn-primary btn-sm" data-a="c">${ic("fish", "xs")}Fang hier</button><button class="btn btn-sm" data-a="s">${ic("pin", "xs")}Spot hier</button></div>`;
     const pop = L.popup().setLatLng(e.latlng).setContent(el).openOn(map);
+    depthAt(lat, lng).then((b) => { if (b) { const d = document.createElement("div"); d.className = "ps depth-at"; d.innerHTML = `<i style="background:${b[2]}"></i>Tiefe ${bandLabel(b)}`; el.querySelector(".coord").after(d); pop.update(); } });
     el.querySelector('[data-a="c"]').onclick = () => { map.closePopup(pop); openCatchForm({ lat, lng, waterId: w?.id }); };
     el.querySelector('[data-a="s"]').onclick = () => { map.closePopup(pop); openSpotForm({ lat, lng, waterId: w?.id }); };
   });
@@ -833,11 +903,13 @@
     openSheet({
       title: "Kartenebenen", plain: true, noFooter: true,
       body: `<h3>Grundkarte</h3><div class="list" style="margin-bottom:18px">${Object.entries(BASES).map(([k, b]) => `<label class="li"><input type="radio" name="base" value="${k}" ${k === baseKey ? "checked" : ""} style="width:auto"><span class="body"><span class="t">${b.name}</span></span></label>`).join("")}</div>
-        <h3>Zusätzliche Ebenen</h3><div class="list">${Object.entries(OVERLAYS).map(([k, o]) => `<label class="li"><input type="checkbox" name="ov" value="${k}" ${active.includes(k) ? "checked" : ""} style="width:auto"><span class="body"><span class="t">${o.name}</span>${k === "bathy" ? `<span class="s">Seegrund-Schummerung, wo swisstopo-Daten vorliegen</span>` : ""}</span></label>`).join("")}</div>
+        <h3>Zusätzliche Ebenen</h3><div class="list">${Object.entries(OVERLAYS).map(([k, o]) => `<label class="li"><input type="checkbox" name="ov" value="${k}" ${active.includes(k) ? "checked" : ""} style="width:auto"><span class="body"><span class="t">${o.name}</span>${k === "bathy" ? `<span class="s">Seegrund-Schummerung, wo swisstopo-Daten vorliegen</span>` : k === "depth" ? `<span class="s">Wassertiefe in Farben für 22 grosse Seen – Legende über das i-Symbol</span>` : ""}</span></label>`).join("")}</div>
         <p class="source">Tipp: Die Landeskarte zeigt in vielen Seen Tiefenlinien.</p>`,
     });
     $$('#sheetBody [name="base"]').forEach((r) => r.addEventListener("change", () => {
-      map.removeLayer(BASES[baseKey].layer); baseKey = r.value; BASES[baseKey].layer.addTo(map); store.set("base", baseKey);
+      map.removeLayer(BASES[baseKey].layer); baseKey = r.value; BASES[baseKey].layer.addTo(map).bringToBack(); store.set("base", baseKey);
+      // gewählte Zusatzebenen sicher wieder anzeigen
+      store.get("overlays", []).forEach((k) => { const o = OVERLAYS[k]; if (o && !map.hasLayer(o.layer)) o.layer.addTo(map); });
     }));
     $$('#sheetBody [name="ov"]').forEach((c) => c.addEventListener("change", () => {
       const sel = $$('#sheetBody [name="ov"]:checked').map((x) => x.value);
@@ -1005,6 +1077,7 @@
         ${field("Datum & Zeit", `<input type="datetime-local" name="date" value="${esc(o.date)}">`)}
         ${field("Länge (cm)", `<input type="number" name="length" step="0.5" min="0" inputmode="decimal" value="${esc(o.length)}">`)}
         ${field("Gewicht (kg)", `<input type="number" name="weight" step="0.01" min="0" inputmode="decimal" value="${esc(o.weight)}">`)}
+        <div class="field full" id="fRuleWrap" hidden><div class="rule-warn" id="fRule"></div></div>
         ${field("Gewässer", `<select name="waterId" id="fWater">${waterOptions(o.waterId)}</select>`)}
         ${field("Spot", `<select name="spotId" id="fSpot">${spotOpts(o.waterId)}</select>`)}
         ${field("Technik", `<input name="technique" list="dlTech" value="${esc(o.technique)}" placeholder="z. B. Hegene" autocomplete="off"><datalist id="dlTech">${techniqueOptions()}</datalist>`)}
@@ -1035,6 +1108,14 @@
       onDelete: existing ? async () => { await DB.del("catches", existing.id); await reload(); toast("Fang gelöscht"); } : null,
     });
     $("#fWater").addEventListener("change", (e) => { o.spotId = null; $("#fSpot").innerHTML = spotOpts(e.target.value); $("#dlSpecies").innerHTML = speciesOptions(waterById(e.target.value)); });
+    const ruleHint = () => {
+      const r = ruleCheck(waterById($("#fWater").value), $('[name="species"]').value, num($('[name="length"]').value), $('[name="date"]').value);
+      $("#fRuleWrap").hidden = !r;
+      if (r) { $("#fRule").className = "rule-warn" + (r.bad ? " bad" : ""); $("#fRule").innerHTML = `${ic("info", "sm")}<span>${esc(r.text)}</span>`; }
+    };
+    ["species", "length", "date"].forEach((n) => $(`[name="${n}"]`).addEventListener("input", ruleHint));
+    $("#fWater").addEventListener("change", ruleHint);
+    ruleHint();
     // Spot gewählt → Position des Spots übernehmen (danach lässt sie sich per GPS/Karte noch anpassen)
     $("#fSpot").addEventListener("change", (e) => {
       const sp = state.spots.find((x) => x.id === e.target.value);
@@ -1333,6 +1414,7 @@
     if (act === "pick-water") openWaterPicker();
     if (act === "edit-water") openWaterEdit(activeWater());
     if (act === "goto") showView(a.dataset.view);
+    if (act === "guide-rules") { state.guideSeg = "rules"; showView("guide"); }
     if (act === "guide-fish") { state.guideSeg = "fish"; $("#guideSearch").value = a.dataset.name; showView("guide"); }
   });
 
@@ -1376,10 +1458,37 @@
   }
 
   // ───────────────────────── Spot-Details ─────────────────────────
+  // Index je Spot: Gewässer-Index, angepasst an die eigene Fangbilanz des Spots und seine Tiefe
   function spotIndex(sp) {
     const w = waterById(sp.waterId) || activeWater();
     const sol = solunar(new Date(), sp.lat, sp.lng);
-    return waterIndex(w, sol, w ? state.live.fc[w.id] || null : null);
+    const base = waterIndex(w, sol, w ? state.live.fc[w.id] || null : null);
+    const why = [];
+    let adj = 0;
+    const cs = state.catches.filter((c) => c.spotId === sp.id);
+    if (cs.length) {
+      const m = new Date().getMonth(), h = new Date().getHours();
+      const near = (a, b2, n) => Math.min(Math.abs(a - b2), n - Math.abs(a - b2));
+      const season = cs.filter((c) => near(new Date(c.date).getMonth(), m, 12) <= 1).length / cs.length;
+      const tod = cs.filter((c) => near(new Date(c.date).getHours(), h, 24) <= 2).length / cs.length;
+      const act = (base.parts?.best || []).map(norm);
+      const actShare = act.length ? cs.filter((c) => act.includes(norm(canonFish(c.species)))).length / cs.length : 0;
+      const s1 = Math.round(season * 9), s2 = Math.round(tod * 5), s3 = Math.round(actShare * 6), s4 = Math.min(cs.length, 5);
+      adj += s1 + s2 + s3 + s4 - 7;
+      if (s1 >= 5) why.push("Fänge in dieser Jahreszeit");
+      if (s2 >= 3) why.push("Fänge um diese Tageszeit");
+      if (s3 >= 3) why.push("gefangene Arten sind jetzt aktiv");
+      if (!s1 && cs.length >= 2) why.push("hier bisher zu anderen Jahreszeiten gefangen");
+    }
+    const ld = w ? lakeData(w) : null, th = ld ? thermocline(ld.profile) : null;
+    if (sp.depth && th?.stratified) {
+      const dd = sp.depth - th.depth;
+      if (dd > 8) { adj -= 6; why.push(`${nf(sp.depth, 0)} m liegt deutlich unter der Sprungschicht (${nf(th.depth, 0)} m)`); }
+      else if (dd > 0) adj -= 2;
+      else if (dd > -6) { adj += 4; why.push(`Tiefe ${nf(sp.depth, 0)} m knapp über der Sprungschicht`); }
+    }
+    const score = Math.max(0, Math.min(100, Math.round(base.score + adj)));
+    return { ...base, score, spotAdj: adj, spotWhy: why };
   }
   function openSpotDetail(sp) {
     if (!sp) return;
@@ -1395,7 +1504,9 @@
         <div class="score-row" style="margin-bottom:12px">${ringHtml(bi)}
           <div class="score-meta"><div class="t">Heute ${scoreLabel(bi.score).toLowerCase()}</div>
             <div class="s" id="spotScoreB">${indexBreakdown(bi)}</div>
-            ${bi.parts?.best?.length ? `<div class="s">aktiv: ${esc(bi.parts.best.join(", "))}</div>` : ""}</div></div>
+            ${bi.parts?.best?.length ? `<div class="s">aktiv: ${esc(bi.parts.best.join(", "))}</div>` : ""}
+            ${bi.spotAdj ? `<div class="s">Spot ${bi.spotAdj > 0 ? "+" : "−"}${Math.abs(Math.round(bi.spotAdj))} gegenüber Gewässer${bi.spotWhy.length ? `: ${esc(bi.spotWhy.join(", "))}` : ""}</div>` : ""}
+            <div class="s" id="spotDepthAt"></div></div></div>
         <div class="facts spot-facts">
           ${fact("Gewässer", esc(w?.name || "–"))}
           ${fact("Wassertiefe", sp.depth != null ? `${nf(sp.depth)} <small>m</small>` : "–")}
@@ -1420,6 +1531,7 @@
             <span class="cc-s">${esc(fmtDate(c.date))}${c.bait ? ` · ${esc(c.bait)}` : ""}</span></span></button>`).join("")}</div>`
           : `<p class="small muted">Noch keine Fänge an diesem Spot. Tippe auf «Fang hier».</p>`}`,
     });
+    if (sp.lat != null) depthAt(sp.lat, sp.lng).then((b) => { const el = $("#spotDepthAt"); if (b && el) el.innerHTML = `<span class="depth-at"><i style="background:${b[2]}"></i>Tiefe laut Karte: ${bandLabel(b)}</span>`; });
     $("#sdCatch").onclick = () => openCatchForm({ lat: sp.lat, lng: sp.lng, spotId: sp.id, waterId: sp.waterId });
     $("#sdMap").onclick = () => { sheet.close(); showView("map"); setTimeout(() => map.flyTo([sp.lat, sp.lng], 16), 80); };
     $("#sdEdit").onclick = () => openSpotForm(sp);
@@ -1540,7 +1652,7 @@
       <div class="card">
         <div class="card-head"><h3>Spots</h3><button class="link-btn" data-action="new-spot">+ Spot</button></div>
         ${sp.length ? `<div class="list" style="border:0;border-radius:0;margin:0 -16px -16px">${sp.map((s) => { const n = state.catches.filter((c) => c.spotId === s.id).length; return `
-          <button type="button" class="li" data-spot="${s.id}"><span class="thumb sm">${ic("pin", "sm")}</span><span class="body"><span class="t">${esc(s.name)}</span><span class="s">${n} Fänge${s.depth ? ` · ${nf(s.depth)} m` : ""}${s.species ? ` · ${esc(s.species)}` : ""}</span></span><span class="end">${s.rating ? "★".repeat(s.rating) : ""}</span></button>`; }).join("")}</div>`
+          <button type="button" class="li" data-spot="${s.id}"><span class="thumb sm">${ic("pin", "sm")}</span><span class="body"><span class="t">${esc(s.name)}</span><span class="s">${n} Fänge${s.depth ? ` · ${nf(s.depth)} m` : ""}${s.species ? ` · ${esc(s.species)}` : ""}</span></span><span class="end spot-end">${(() => { const sc = spotIndex(s).score; return `<span class="idx-pill" style="background:${scoreColor(sc)}" title="Beissindex heute">${sc}</span>`; })()}${s.rating ? `<span class="stars">${"★".repeat(s.rating)}</span>` : ""}</span></button>`; }).join("")}</div>`
           : `<p class="small muted">Noch keine Spots. Tippe auf der Karte auf eine Stelle, um sie zu speichern.</p>`}
       </div>
 
@@ -1552,7 +1664,11 @@
 
       <div class="card">
         <h3>Regeln & Patent</h3>
-        <p class="small">${w.permit ? `<b>${esc(w.permit)}</b><br>` : ""}${w.cantons ? `Zuständig: Fischereiverwaltung Kanton ${esc(w.cantons)}. ` : ""}Schonzeiten, Schonmasse und Fangzahlen sind kantonal geregelt – vor dem Fischen die aktuellen Vorschriften prüfen.</p>
+        ${(() => { const z = zhRules(w); if (!z) return ""; const now = new Date(); const closed = zhSpeciesRows(z.set).filter(([, r]) => r.protected || inClosed(r.closed, now)).map(([l]) => l);
+          return `<p class="small"><b>${esc(z.set.name)}</b> · Kanton Zürich, ${esc(window.RULES_ZH.valid)}${z.set.times ? `<br>${esc(z.set.times)}` : ""}</p>
+          ${closed.length ? `<div class="rule-warn bad" style="margin:8px 0">${ic("info", "sm")}<span>Heute geschont: <b>${esc(closed.join(", "))}</b></span></div>` : ""}
+          <button class="btn btn-sm" data-action="guide-rules" style="margin:4px 0 10px">Schonzeiten & Mindestmasse ansehen</button>`; })()}
+        <p class="small">${w.permit ? `<b>${esc(w.permit)}</b><br>` : ""}${w.cantons ? `Zuständig: Fischereiverwaltung Kanton ${esc(w.cantons)}. ` : ""}${zhRules(w) ? "" : "Schonzeiten, Schonmasse und Fangzahlen sind kantonal geregelt – vor dem Fischen die aktuellen Vorschriften prüfen."}</p>
         ${w.notes ? `<p class="small muted" style="margin-top:8px">${esc(w.notes)}</p>` : ""}
       </div>`;
 
@@ -2059,9 +2175,19 @@
       out.push(`- Tipp: ${f.tips}`);
     }
     for (const t of tech.slice(0, 2)) out.push(`\n**${t.name}:** ${t.desc}\n- Ausrüstung: ${t.gear}\n- So geht's: ${t.how}`);
-    if (rules) out.push(`\n**Regeln:** ${window.RULES_CH.slice(0, 3).join(" ")}${w?.cantons ? ` Zuständig für ${w.name}: Kanton ${w.cantons}.` : ""}`);
+    if (rules) {
+      const z = zhRules(w);
+      if (z) {
+        const rows = zhSpeciesRows(z.set).filter(([l, r]) => !fish.length || fish.some((f) => norm(l).includes(norm(f.name).slice(0, 5)) || (z.set.sp[f.name] && (z.set.sp[f.name].label || f.name) === l)));
+        out.push(`\n**Regeln ${z.set.name} (Kanton Zürich, ${window.RULES_ZH.valid}):**`);
+        rows.forEach(([l, r]) => out.push(`- ${l}: ${r.protected ? "ganzjährig geschützt" : [r.min ? `Mindestmass ${r.min} cm` : "", r.closed ? `Schonzeit ${fmtMD(r.closed[0])}–${fmtMD(r.closed[1])}` : "", r.limit ? `max. ${r.limit}/Tag` : ""].filter(Boolean).join(", ")}`));
+        if (z.set.times) out.push(`- ${z.set.times}`);
+        out.push(`- ${z.set.gear[0]}`);
+        out.push("Alle Details unter Wissen → Regeln.");
+      } else out.push(`\n**Regeln:** ${window.RULES_CH.slice(0, 3).join(" ")}${w?.cantons ? ` Zuständig für ${w.name}: Kanton ${w.cantons}.` : ""}`);
+    }
     if (!out.length) out.push("Dazu habe ich im Offline-Modus keine Antwort. Frag mich nach einer Fischart, einer Technik, den Regeln oder den heutigen Bedingungen.");
-    out.push(`\n_Offline-Berater ohne KI. Mit einem eigenen Claude-Schlüssel (unten) beantworte ich jede Frage frei._`.replace(/_/g, ""));
+
     return out.join("\n");
   }
 
@@ -2081,8 +2207,9 @@
       } : null,
       meine_faenge: { anzahl: cs.length, arten: topBy(cs, "species").slice(0, 5), koeder: topBy(cs, "bait").slice(0, 5), techniken: topBy(cs, "technique").slice(0, 5) },
       bester_hotspot: c?.hs ? { faenge: c.hs.n, arten: c.hs.species, score_heute: c.hs.score, gruende: c.hs.reasons, tipp: c.hs.tip } : null,
+      vorschriften: zhRulesText(w),
     };
-    return `Du bist der Angel-Berater in der App «Fischerglück» für Schweizer Gewässer. Antworte auf Deutsch (Schweizer Schreibweise mit «ss» statt «ß»), freundlich, konkret und praxisnah, meist in wenigen kurzen Absätzen oder Stichpunkten. Nutze die folgenden aktuellen Daten aus der App, wenn sie zur Frage passen, und sag ehrlich, wenn dir eine Information fehlt. Schonzeiten, Schonmasse und Patente sind kantonal geregelt: nenne keine erfundenen Daten, sondern verweise auf das Patent-Merkblatt bzw. die kantonale Fischereiverwaltung. Weise bei Gewitter oder Sturm auf die Sicherheit hin.
+    return `Du bist der Angel-Berater in der App «Fischerglück» für Schweizer Gewässer. Antworte auf Deutsch (Schweizer Schreibweise mit «ss» statt «ß»), freundlich, konkret und praxisnah, meist in wenigen kurzen Absätzen oder Stichpunkten. Nutze die folgenden aktuellen Daten aus der App, wenn sie zur Frage passen, und sag ehrlich, wenn dir eine Information fehlt. Schonzeiten, Schonmasse und Patente sind kantonal geregelt: Nutze die mitgelieferten Vorschriften, falls vorhanden; sonst nenne keine erfundenen Daten, sondern verweise auf das Patent-Merkblatt bzw. die kantonale Fischereiverwaltung. Weise bei Gewitter oder Sturm auf die Sicherheit hin.
 
 Aktuelle Daten (JSON):
 ${JSON.stringify(ctx)}`;
@@ -2117,69 +2244,191 @@ ${JSON.stringify(ctx)}`;
     }
   }
 
+  function zhRulesText(w) {
+    const z = zhRules(w);
+    if (!z) return null;
+    return `${z.set.name} (Kt. ZH, ${window.RULES_ZH.valid}): ` + zhSpeciesRows(z.set).map(([l, r]) => `${l} ${r.protected ? "geschützt" : [r.min ? `${r.min} cm` : "", r.closed ? `Schonzeit ${fmtMD(r.closed[0])}–${fmtMD(r.closed[1])}` : "", r.limit ? `${r.limit}/Tag` : ""].filter(Boolean).join(", ")}`).join("; ") + (z.set.times ? `. ${z.set.times}` : "") + ` ${z.set.gear[0]}`;
+  }
+  // Frage samt aktuellen Daten als Text für claude.ai (nutzt das eigene Claude-Abo)
+  function claudePrompt(question) {
+    const w = activeWater(), c = conditionsNow(w), cat = catalogOf(w);
+    const L = ["Ich nutze die Angel-App «Fischerglück» für Schweizer Gewässer. Bitte antworte auf Deutsch mit Schweizer Schreibweise (ss statt ß), kurz und praxisnah. Hier meine aktuellen Daten aus der App:"];
+    L.push(`- Datum: ${new Date().toLocaleString("de-CH", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}`);
+    if (w) L.push(`- Gewässer: ${w.name} (${KIND[w.kind] || "Gewässer"}${w.cantons || cat?.cantons ? `, Kanton ${w.cantons || cat.cantons}` : ""}${cat?.depth ? `, max. ${cat.depth} m tief` : ""}). Fischarten: ${speciesOfWater(w).join(", ")}`);
+    if (c) {
+      L.push(`- Beissindex heute: ${c.bi.score}/100 (Mond & Sonne ${c.bi.parts?.sol ?? "–"}, Fischaktivität ${c.bi.parts?.fish ?? "–"}, Wetter ${c.bi.parts?.wx ?? "–"})${c.bi.parts?.best?.length ? `, aktiv: ${c.bi.parts.best.join(", ")}` : ""}`);
+      if (c.temp != null) L.push(`- Wassertemperatur: ${nf(c.temp)} °C${c.th?.stratified ? `, Sprungschicht ca. ${nf(c.th.depth, 0)} m` : ""}`);
+      if (c.wx) L.push(`- Wetter: ${WMO(c.wx.weather_code)[1]}, ${nf(c.wx.temperature_2m, 0)} °C, Wind ${nf(c.wx.wind_speed_10m, 0)} km/h aus ${dirName(c.wx.wind_direction_10m)}`);
+      L.push(`- Mond: ${phaseName(c.sol.ill.phase)} · Sonne ${hm(c.sol.sun.sunrise)}–${hm(c.sol.sun.sunset)} · Hauptbeisszeiten ${c.sol.periods.filter((p) => p.kind === "major").map((p) => `${hm(p.from)}–${hm(p.to)}`).join(", ")}`);
+    }
+    const cs = w ? state.catches.filter((x) => x.waterId === w.id) : state.catches;
+    if (cs.length) L.push(`- Meine Fänge hier: ${cs.length} (${topBy(cs, "species").slice(0, 3).map((x) => x[0]).join(", ")}${topBy(cs, "bait")[0] ? `; bester Köder ${topBy(cs, "bait")[0][0]}` : ""}${topBy(cs, "technique")[0] ? `; Technik ${topBy(cs, "technique")[0][0]}` : ""})`);
+    const rt = zhRulesText(w);
+    if (rt) L.push(`- Vorschriften: ${rt}`);
+    L.push("", `Meine Frage: ${question}`);
+    return L.join("\n");
+  }
+  const claudeUrl = (q) => "https://claude.ai/new?q=" + encodeURIComponent(claudePrompt(q));
+  const aiMode = () => (store.get("aiKey", "") ? "api" : store.get("aiMode", "claude"));
+
   function chatHtml() {
     if (!state.chat.length) return `<div class="chat-empty">${ic("fish", "lg")}<p>Frag mich etwas zum Angeln – zu Fischarten, Ködern, Techniken, Regeln oder den heutigen Bedingungen an deinem Gewässer.</p></div>`;
-    return state.chat.map((x) => `<div class="chat-msg ${x.role}${x.error ? " err" : ""}">${x.role === "user" ? esc(x.text) : x.text ? mdLite(x.text) : `<span class="typing"><i></i><i></i><i></i></span>`}</div>`).join("");
+    return state.chat.map((x, i) => `<div class="chat-msg ${x.role}${x.error ? " err" : ""}${x.claude ? " to-claude" : ""}">${x.role === "user" ? esc(x.text) : x.text ? mdLite(x.text) : `<span class="typing"><i></i><i></i><i></i></span>`}${x.role === "assistant" && x.q && x.text ? `<a class="btn btn-sm claude-btn" href="${esc(claudeUrl(x.q))}" target="_blank" rel="noopener">${x.claude ? "Claude erneut öffnen" : "In Claude vertiefen"} ↗</a>` : ""}</div>`).join("");
   }
 
   function renderAdvisor() {
-    const key = store.get("aiKey", ""), w = activeWater();
-    const sugg = [w ? `Was soll ich heute am ${w.name} fischen?` : "Wie stehen die Chancen heute?", `Welcher Köder für Hecht im ${MONTHS[new Date().getMonth()]}?`, "Wie funktioniert die Hegene?", "Wo stehen Egli bei dieser Wassertemperatur?"];
-    $("#guide").innerHTML = `
+    const mode = aiMode(), w = activeWater();
+    const sugg = [w ? `Was soll ich heute am ${w.name} fischen?` : "Wie stehen die Chancen heute?", `Welcher Köder für Hecht im ${MONTHS[new Date().getMonth()]}?`, "Wie funktioniert die Hegene?", "Wo stehen Egli bei dieser Wassertemperatur?", "Welche Schonzeiten gelten hier?"];
+    const firstLogin = mode === "claude" && !store.get("aiLogin", false);
+    $("#advisor").innerHTML = `
+      <div class="page-head"><h1>Berater</h1><span class="pill ${mode === "local" ? "pill-neutral" : "pill-good"}">${mode === "api" ? "Claude API" : mode === "claude" ? "Claude Pro" : "Offline"}</span></div>
+      ${mode !== "api" ? `<div class="segmented" id="aiSeg"><button type="button" data-mode="claude" class="${mode === "claude" ? "on" : ""}">Claude (dein Abo)</button><button type="button" data-mode="local" class="${mode === "local" ? "on" : ""}">Offline-Berater</button></div>` : ""}
+      ${firstLogin ? `<div class="card claude-login">
+          <div class="claude-logo">${ic("chat", "lg")}</div>
+          <div class="claude-title">Mit Claude anmelden</div>
+          <p class="small">Melde dich einmal mit deinem Claude-Konto (Pro) an. Danach öffnet jede Frage Claude direkt mit allen aktuellen Daten zu deinem Gewässer: Beissindex, Wetter, Wassertemperatur, Sprungschicht, deine Fänge und die geltenden Vorschriften. Es entstehen <b>keine zusätzlichen Kosten</b> – es läuft über dein Abo.</p>
+          <a class="btn btn-primary" id="aiLogin" href="https://claude.ai/login" target="_blank" rel="noopener">Bei Claude anmelden ↗</a>
+          <button type="button" class="link-btn" id="aiLoginDone" style="margin-top:10px">Ich bin schon angemeldet</button>
+        </div>` : ""}
       <div class="card advisor">
-        <div class="card-head"><h3>KI-Berater</h3><span class="pill ${key ? "pill-good" : "pill-neutral"}">${key ? "Claude" : "Offline"}</span></div>
         <div class="chat-log" id="chatLog">${chatHtml()}</div>
         <div class="chips" id="chatSugg" style="margin:10px 0">${sugg.map((t) => `<button type="button" class="chip" data-q="${esc(t)}">${esc(t)}</button>`).join("")}</div>
-        <form class="chat-input" id="chatForm"><input id="chatInput" placeholder="Frag mich etwas zum Angeln …" autocomplete="off">
+        <form class="chat-input" id="chatForm"><input id="chatInput" placeholder="${mode === "claude" ? "Frage an Claude …" : "Frag mich etwas zum Angeln …"}" autocomplete="off">
           <button class="btn btn-primary" type="submit" aria-label="Senden">${ic("chev-r", "sm")}</button></form>
-        ${state.chat.length ? `<button type="button" class="link-btn" id="chatClear" style="margin-top:10px">Gespräch löschen</button>` : ""}
+        <p class="small muted" style="margin-top:8px">${mode === "claude" ? "Deine Frage öffnet sich in Claude (App oder claude.ai) – dort antwortet Claude mit deinem Pro-Abo." : mode === "local" ? "Der Offline-Berater antwortet sofort aus dem App-Wissen und den heutigen Bedingungen – auch ohne Internet." : "Claude antwortet direkt hier in der App über deinen API-Schlüssel."}</p>
+        ${state.chat.length ? `<button type="button" class="link-btn" id="chatClear" style="margin-top:6px">Gespräch löschen</button>` : ""}
       </div>
-      <details class="acc" ${key ? "" : "open"}><summary><span class="badge-ic">${ic("sliders")}</span><span><span class="t">Claude-Schlüssel</span><br><span class="s">${key ? "Gespeichert – freie KI-Antworten aktiv" : "Optional – für freie Antworten von Claude"}</span></span>${ic("chev", "sm")}</summary>
+      <details class="acc"><summary><span class="badge-ic">${ic("sliders")}</span><span><span class="t">Antworten direkt in der App (API)</span><br><span class="s">${mode === "api" ? "API-Schlüssel gespeichert" : "Optional, für Fortgeschrittene – kostet separat"}</span></span>${ic("chev", "sm")}</summary>
         <div class="acc-body">
-          <p class="small muted">Ohne Schlüssel antwortet der eingebaute Offline-Berater aus dem App-Wissen und den heutigen Bedingungen – kostenlos. Mit einem eigenen API-Schlüssel von Anthropic (console.anthropic.com) beantwortet Claude jede Frage frei. Die Nutzung wird über dein Anthropic-Konto abgerechnet (pro Frage meist nur Bruchteile eines Rappens bis wenige Rappen).</p>
-          <p class="small muted" style="margin-top:6px">Der Schlüssel bleibt nur auf diesem Gerät. Deine Frage und die aktuellen Gewässer- und Fangdaten werden dafür an Anthropic gesendet.</p>
-          <div class="row" style="margin-top:10px"><input id="aiKey" type="password" placeholder="sk-ant-…" autocomplete="off" value="${key ? "••••••••••••" : ""}">
+          <p class="small muted">Das Claude-Pro-Abo gilt nur in den Claude-Apps und auf claude.ai – andere Apps dürfen es nicht nutzen. Darum öffnet der Berater deine Frage in Claude. Wer die Antwort lieber direkt hier in der App möchte, braucht einen API-Schlüssel von console.anthropic.com; dieser wird separat nach Verbrauch abgerechnet.</p>
+          <p class="small muted" style="margin-top:6px">Der Schlüssel bleibt nur auf diesem Gerät.</p>
+          <div class="row" style="margin-top:10px"><input id="aiKey" type="password" placeholder="sk-ant-…" autocomplete="off" value="${mode === "api" ? "••••••••••••" : ""}">
             <button type="button" class="btn btn-primary btn-sm" id="aiKeySave">Speichern</button></div>
-          ${key ? `<button type="button" class="link-btn" id="aiKeyDel" style="margin-top:10px">Schlüssel entfernen</button>` : ""}
+          ${mode === "api" ? `<button type="button" class="link-btn" id="aiKeyDel" style="margin-top:10px">Schlüssel entfernen</button>` : ""}
         </div></details>`;
     const log = $("#chatLog");
     log.scrollTop = log.scrollHeight;
+    const rerender = () => { if (currentView === "ai") renderAdvisor(); };
     const send = async (text) => {
       text = text.trim();
       if (!text) return;
+      const m = aiMode();
       state.chat.push({ role: "user", text });
-      const ans = { role: "assistant", text: "" };
+      if (m === "claude") {
+        // synchron im Klick öffnen, damit der Browser das Fenster nicht blockiert
+        window.open(claudeUrl(text), "_blank", "noopener");
+        store.set("aiLogin", true);
+        state.chat.push({ role: "assistant", text: "Ich habe deine Frage mit den aktuellen Daten an **Claude** übergeben. Falls sich nichts geöffnet hat, tippe unten.", q: text, claude: true, local: true });
+        return renderAdvisor();
+      }
+      const ans = { role: "assistant", text: "", q: text };
       state.chat.push(ans);
       renderAdvisor();
-      if (!store.get("aiKey", "")) {
-        ans.text = localAdvisor(text); ans.local = true;
-        renderAdvisor(); return;
-      }
-      if (!navigator.onLine) { ans.text = localAdvisor(text); ans.local = true; renderAdvisor(); return; }
+      if (m === "local" || !navigator.onLine) { ans.text = localAdvisor(text); ans.local = true; return renderAdvisor(); }
       let raf = 0;
       const r = await askClaude((d) => {
         ans.text += d;
         if (!raf) raf = requestAnimationFrame(() => { raf = 0; const last = $("#chatLog .chat-msg.assistant:last-child"); if (last) { last.innerHTML = mdLite(ans.text); $("#chatLog").scrollTop = 1e9; } });
       });
       if (r.error) { ans.text = r.error; ans.error = true; ans.local = true; } else ans.text = r.text || ans.text;
-      if (currentView === "guide" && state.guideSeg === "ai") renderAdvisor();
+      rerender();
     };
     $("#chatForm").onsubmit = (e) => { e.preventDefault(); const v = $("#chatInput").value; $("#chatInput").value = ""; send(v); };
     $("#chatSugg").onclick = (e) => { const b = e.target.closest("[data-q]"); if (b) send(b.dataset.q); };
+    if ($("#aiSeg")) $("#aiSeg").onclick = (e) => { const b = e.target.closest("[data-mode]"); if (b) { store.set("aiMode", b.dataset.mode); renderAdvisor(); } };
+    if ($("#aiLogin")) $("#aiLogin").onclick = () => { store.set("aiLogin", true); setTimeout(renderAdvisor, 300); };
+    if ($("#aiLoginDone")) $("#aiLoginDone").onclick = () => { store.set("aiLogin", true); renderAdvisor(); };
     if ($("#chatClear")) $("#chatClear").onclick = () => { state.chat = []; renderAdvisor(); };
     $("#aiKeySave").onclick = () => {
       const v = $("#aiKey").value.trim();
       if (!v || v.startsWith("•")) return toast("Bitte einen Schlüssel eingeben");
       if (!v.startsWith("sk-ant-")) return toast("Das sieht nicht nach einem Anthropic-Schlüssel aus (beginnt mit sk-ant-)");
-      store.set("aiKey", v); toast("Schlüssel gespeichert – Claude ist aktiv"); renderAdvisor();
+      store.set("aiKey", v); toast("Schlüssel gespeichert – Claude antwortet jetzt direkt hier"); renderAdvisor();
     };
     if ($("#aiKeyDel")) $("#aiKeyDel").onclick = () => { store.set("aiKey", ""); toast("Schlüssel entfernt"); renderAdvisor(); };
   }
 
+  // ───────────────────────── Regeln Kanton Zürich ─────────────────────────
+  const canonFish = (s) => {
+    const n = norm(s);
+    if (!n) return "";
+    const f = window.FISH_GUIDE.find((g) => norm(g.name) === n || g.alias.some((a) => norm(a) === n));
+    return f ? f.name : String(s).trim().replace(/^./, (c) => c.toUpperCase());
+  };
+  function zhRules(w) {
+    const R = window.RULES_ZH;
+    if (!w || !R) return null;
+    const cat = catalogOf(w), n = norm(w.name);
+    if (cat?.key === "zurich" || /zurichsee|obersee/.test(n)) return { key: "zuerichsee", set: R.sets.zuerichsee };
+    if (["greifensee", "pfaeffikersee"].includes(cat?.key) || R.kleinseen.some((k) => n.includes(norm(k)))) return { key: "kleinseen", set: R.sets.kleinseen };
+    const cantons = cat?.cantons || w.cantons || "";
+    if (w.kind === "river" && /\bZH\b/.test(cantons)) return { key: "pacht", set: R.sets.pacht, rhein: cat?.key === "rhein", partial: cantons.trim() !== "ZH" };
+    if (!cat && /\bZH\b/.test(cantons)) return { key: "pacht", set: R.sets.pacht };
+    return null;
+  }
+  const mdv = (d) => d.getMonth() * 100 + 100 + d.getDate();
+  const inClosed = (cl, d) => { if (!cl) return false; const v = mdv(d), a = cl[0][0] * 100 + cl[0][1], b = cl[1][0] * 100 + cl[1][1]; return a <= b ? v >= a && v <= b : v >= a || v <= b; };
+  const fmtMD = ([m, d]) => `${d}.${m}.`;
+  function speciesRule(w, species, z = zhRules(w)) {
+    if (!z || !species) return null;
+    const f = canonFish(species);
+    const r = z.set.sp[f] || Object.entries(z.set.sp).find(([k]) => norm(k) === norm(species))?.[1];
+    if (!r) return null;
+    const min = z.rhein && window.RULES_ZH.rhein[f] ? window.RULES_ZH.rhein[f] : r.min;
+    return { ...r, min, name: r.label || f, set: z.set.name };
+  }
+  function ruleCheck(w, species, length, date) {
+    const r = speciesRule(w, species);
+    if (!r) return null;
+    const d = date ? new Date(date) : new Date(), bad = [];
+    if (r.protected) bad.push(`${r.name} ist hier ganzjährig geschützt`);
+    else if (inClosed(r.closed, d)) bad.push(`Schonzeit ${r.name} (${fmtMD(r.closed[0])}–${fmtMD(r.closed[1])})`);
+    if (!r.protected && length && r.min && length < r.min) bad.push(`untermassig – Mindestmass ${r.min} cm`);
+    const info = [r.min && !r.protected ? `Mindestmass ${r.min} cm` : "", r.closed && !r.protected ? `Schonzeit ${fmtMD(r.closed[0])}–${fmtMD(r.closed[1])}` : "", r.limit ? `max. ${r.limit} pro Tag` : ""].filter(Boolean).join(" · ");
+    return bad.length ? { bad: true, text: `${bad.join(", ")}: sofort sorgfältig mit nassen Händen zurücksetzen.` } : info ? { bad: false, text: `${r.set}: ${info}` } : null;
+  }
+  function zhSpeciesRows(set) {
+    const seen = new Map();
+    for (const [k, r] of Object.entries(set.sp)) { const l = r.label || k; if (!seen.has(l)) seen.set(l, r); }
+    return [...seen.entries()];
+  }
+  function zhSetHtml(z, open) {
+    const s = z.set, now = new Date();
+    const rows = zhSpeciesRows(s);
+    const closedNow = rows.filter(([, r]) => r.protected || inClosed(r.closed, now)).map(([l]) => l);
+    const table = `<div class="rules-table"><table><thead><tr><th>Art</th><th>Mindest&shy;mass</th><th>Schonzeit</th><th>pro Tag</th></tr></thead><tbody>
+      ${rows.map(([l, r]) => { const c = r.protected || inClosed(r.closed, now); return `<tr class="${c ? "closed-now" : ""}"><td>${esc(l)}</td><td>${r.protected ? "–" : r.min ? `${z.rhein && l === "Forellen" ? 35 : r.min} cm` : "–"}</td><td>${r.protected ? "ganzjährig geschützt" : r.closed ? `${fmtMD(r.closed[0])}–${fmtMD(r.closed[1])}` : "–"}</td><td>${r.limit || "–"}</td></tr>`; }).join("")}
+      </tbody></table></div>`;
+    const ul = (a) => `<ul class="rules small">${a.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
+    return `<details class="acc rules-acc" ${open ? "open" : ""}><summary><span class="badge-ic">${ic("book")}</span><span><span class="t">${esc(s.name)}</span><br><span class="s">${closedNow.length ? `Heute geschont: ${esc(closedNow.join(", "))}` : "Kanton Zürich · " + esc(window.RULES_ZH.valid)}</span></span>${ic("chev", "sm")}</summary>
+      <div class="acc-body">
+        <p class="small muted" style="margin-bottom:10px">${esc(s.scope)}${z.partial ? ". Gilt für den Zürcher Abschnitt – in anderen Kantonen gelten deren Vorschriften." : ""}</p>
+        ${closedNow.length ? `<div class="rule-warn bad" style="margin-bottom:10px">${ic("info", "sm")}<span>Heute geschont: <b>${esc(closedNow.join(", "))}</b> – gefangene Fische sofort zurücksetzen.</span></div>` : ""}
+        ${table}
+        ${z.rhein ? `<p class="small muted">Im Rhein gilt für Forellen ein Mindestmass von 35 cm.</p>` : ""}
+        ${s.minTable ? `<h4>Mindestmasse nach Revierkategorie (cm)</h4><div class="rules-table"><table><thead><tr>${s.minTable.head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${s.minTable.rows.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table></div><p class="small muted">${esc(s.minTable.note)}</p>` : ""}
+        ${s.times ? `<h4>Fischereizeiten</h4><p class="small">${esc(s.times)}</p>` : ""}
+        <h4>Geräte & Ruten</h4>${ul(s.gear)}
+        ${s.free ? `<h4>Ohne Patent</h4><p class="small">${esc(s.free)}</p>` : ""}
+        ${s.special?.length ? `<h4>Besonderes</h4>${ul(s.special)}` : ""}
+        ${s.permits?.length ? `<h4>Patente & Preise (Fr.)</h4><div class="rules-table"><table><thead><tr><th>Patent</th><th>Dauer</th><th>Erw.</th><th>Jugendl.</th></tr></thead><tbody>${s.permits.map((p) => `<tr>${p.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div><p class="small muted">Jugendliche: vom vollendeten 10. bis zum vollendeten 18. Lebensjahr. Ausgabestellen können Fr. 5 Gebühr erheben.</p>` : ""}
+      </div></details>`;
+  }
+  function zhRulesHtml(w) {
+    const R = window.RULES_ZH, z = zhRules(w);
+    const others = Object.entries(R.sets).filter(([k]) => k !== z?.key).map(([k, set]) => zhSetHtml({ key: k, set }, false)).join("");
+    return `<h3 class="section-label">${esc(R.title)} · ${esc(R.valid)}</h3>
+      ${z ? zhSetHtml(z, true) : ""}
+      <details class="acc rules-acc"><summary><span class="badge-ic">${ic("info")}</span><span><span class="t">Für alle Zürcher Gewässer</span><br><span class="s">Bund & Kanton: Tierschutz, Köderfische, Ausrüstung, Boote</span></span>${ic("chev", "sm")}</summary>
+        <div class="acc-body"><ul class="rules small">${R.all.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div></details>
+      ${others}
+      <p class="source">Quelle: <a href="${R.url}" target="_blank" rel="noopener">Fischereivorschriften Kanton Zürich (Auszug für die Angelfischerei)</a>. Rechtsgültig sind nur die offiziellen Erlasse.</p>`;
+  }
+
   function renderGuide() {
     $$("#guideSeg button").forEach((b) => b.classList.toggle("on", b.dataset.seg === state.guideSeg));
-    $("#guideSearchWrap").hidden = state.guideSeg === "rules" || state.guideSeg === "ai";
-    if (state.guideSeg === "ai") return renderAdvisor();
+    if (state.guideSeg === "ai") state.guideSeg = "fish";
+    $("#guideSearchWrap").hidden = state.guideSeg === "rules";
     const q = norm($("#guideSearch").value);
     const w = activeWater();
     const month = new Date().getMonth();
@@ -2219,8 +2468,10 @@ ${JSON.stringify(ctx)}`;
       html = list.map((t) => `<details class="acc"><summary><span class="badge-ic">${ic("target")}</span><span><span class="t">${esc(t.name)}</span><br><span class="s">${esc(t.desc)}</span></span>${ic("chev", "sm")}</summary>
         <div class="acc-body"><dl><dt>Ausrüstung</dt><dd>${esc(t.gear)}</dd><dt>So geht's</dt><dd>${esc(t.how)}</dd></dl></div></details>`).join("") || `<div class="empty">${ic("search")}<p>Nichts gefunden.</p></div>`;
     } else {
-      html = `<div class="card"><h3>Fischen in der Schweiz</h3><ul class="rules small" style="padding-left:18px;margin:0">${window.RULES_CH.map((r) => `<li>${esc(r)}</li>`).join("")}</ul></div>
-        ${w ? `<div class="card"><h3>${esc(w.name)}</h3><p class="small">${w.cantons ? `Zuständig: Kanton ${esc(w.cantons)}. ` : ""}${w.permit ? `Dein Patent: <b>${esc(w.permit)}</b>. ` : ""}Die aktuellen Schonzeiten und Schonmasse findest du im Patent-Merkblatt bzw. auf der Website der kantonalen Fischereiverwaltung.</p>${w.notes ? `<p class="small muted" style="margin-top:8px">${esc(w.notes)}</p>` : ""}<button class="btn btn-sm" style="margin-top:12px" data-action="edit-water">Eigene Notizen zu Regeln ergänzen</button></div>` : ""}
+      const zr = zhRules(w);
+      html = (zr ? zhRulesHtml(w) : "") + `<div class="card"><h3>Fischen in der Schweiz</h3><ul class="rules small" style="padding-left:18px;margin:0">${window.RULES_CH.map((r) => `<li>${esc(r)}</li>`).join("")}</ul></div>
+        ${w ? `<div class="card"><h3>${esc(w.name)}</h3><p class="small">${w.cantons ? `Zuständig: Kanton ${esc(w.cantons)}. ` : ""}${w.permit ? `Dein Patent: <b>${esc(w.permit)}</b>. ` : ""}${zhRules(w) ? "Die Zürcher Vorschriften für dieses Gewässer stehen oben." : "Die aktuellen Schonzeiten und Schonmasse findest du im Patent-Merkblatt bzw. auf der Website der kantonalen Fischereiverwaltung."}</p>${w.notes ? `<p class="small muted" style="margin-top:8px">${esc(w.notes)}</p>` : ""}<button class="btn btn-sm" style="margin-top:12px" data-action="edit-water">Eigene Notizen zu Regeln ergänzen</button></div>` : ""}
+        ${zr ? "" : zhRulesHtml(w)}
         <p class="source">Die Angaben in dieser App sind allgemeine Hinweise und ersetzen nicht die offiziellen Vorschriften.</p>`;
     }
     $("#guide").innerHTML = html;

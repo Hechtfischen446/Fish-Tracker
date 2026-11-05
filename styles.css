@@ -131,7 +131,7 @@ main { flex: 1; position: relative; overflow: hidden; }
   flex-shrink: 0;
   height: calc(var(--tab-h) + var(--tab-pad));
   padding-bottom: var(--tab-pad);
-  display: grid; grid-template-columns: repeat(5, 1fr);
+  display: grid; grid-template-columns: repeat(6, 1fr);
   background: var(--surface);
   border-top: 1px solid var(--line);
   z-index: 1000;
@@ -819,3 +819,40 @@ img.thumb { object-fit: cover; }
 .typing i:nth-child(2) { animation-delay: .2s; } .typing i:nth-child(3) { animation-delay: .4s; }
 @keyframes blink { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
 #chatSugg .chip { white-space: nowrap; }
+
+/* v21: Tiefenkarte, Spot-Index, Regeln, Berater */
+.depth-legend { display: grid; grid-template-columns: 1fr; gap: 6px; }
+.depth-legend > div { display: flex; align-items: center; gap: 8px; font-size: .88rem; }
+.depth-legend i { width: 26px; height: 16px; border-radius: 4px; flex-shrink: 0; box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
+.depth-legend b { white-space: nowrap; min-width: 86px; }
+.depth-legend .small { font-size: .74rem; }
+.depth-scale { position: absolute; left: 10px; bottom: 34px; z-index: 500; display: flex; flex-direction: column; gap: 1px; padding: 6px 6px 5px; border-radius: 10px; background: var(--surface); box-shadow: 0 4px 16px rgba(0,0,0,.25); font-size: .62rem; font-weight: 600; color: var(--ink-2); pointer-events: none; }
+.depth-scale b { font-size: .64rem; color: var(--ink); margin-bottom: 2px; }
+.depth-scale span { display: flex; align-items: center; gap: 5px; line-height: 1; }
+.depth-scale i { width: 14px; height: 11px; border-radius: 2px; }
+.depth-scale em { font-style: normal; color: var(--ink-3); margin-top: 2px; }
+.depth-at { display: flex; align-items: center; gap: 6px; font-weight: 600; margin-top: 4px; }
+.depth-at i { width: 14px; height: 11px; border-radius: 2px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.2); }
+.spot-end { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.idx-pill { min-width: 30px; padding: 3px 7px; border-radius: 999px; color: #04131a; font-weight: 800; font-size: .8rem; text-align: center; font-variant-numeric: tabular-nums; }
+.spot-end .stars { font-size: .7rem; color: var(--warn); }
+.rules-acc h4 { margin: 14px 0 6px; font-size: .86rem; }
+.rules-table { overflow-x: auto; margin: 0 0 8px; }
+.rules-table table { width: 100%; border-collapse: collapse; font-size: .82rem; }
+.rules-table th, .rules-table td { text-align: left; padding: 6px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.rules-table th { color: var(--ink-3); font-weight: 600; font-size: .74rem; }
+.rules-table tr.closed-now td { color: var(--bad); font-weight: 600; }
+.rules { padding-left: 18px; margin: 0; } .rules li { margin: 3px 0; }
+.rule-warn { display: flex; gap: 8px; align-items: flex-start; padding: 9px 11px; border-radius: 12px; font-size: .84rem; background: var(--surface-2); border: 1px solid var(--line); }
+.rule-warn .ic { flex-shrink: 0; margin-top: 1px; color: var(--accent); }
+.rule-warn.bad { border-color: var(--bad); color: var(--bad); background: color-mix(in srgb, var(--bad) 10%, transparent); }
+.rule-warn.bad .ic { color: var(--bad); }
+#view-ai .segmented { margin-bottom: 12px; }
+#view-ai .chat-log { max-height: none; min-height: 120px; }
+.claude-login { text-align: center; }
+.claude-login .claude-logo { width: 56px; height: 56px; margin: 4px auto 10px; border-radius: 16px; display: grid; place-items: center; color: #fff; background: linear-gradient(135deg, #d97757, #c15f3c); }
+.claude-login .claude-logo .ic { color: #fff; }
+.claude-login p { margin: 6px 0 14px; text-align: left; }
+.claude-login .btn { width: 100%; justify-content: center; }
+.chat-msg .claude-btn { display: inline-flex; margin-top: 8px; text-decoration: none; }
+.claude-login .claude-title { font-weight: 700; font-size: 1.15rem; }

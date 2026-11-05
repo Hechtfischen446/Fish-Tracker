@@ -325,3 +325,125 @@ window.FISH_PHOTOS = {
     "source": "https://www.inaturalist.org/photos/96387493"
   }
 };
+
+// Fischereivorschriften Kanton Zürich, gültig ab 1.1.2026 (Auszug für die Angelfischerei, ALN/FJV)
+// sp: Fischart → { min: Mindestmass cm, closed: [[Monat, Tag], [Monat, Tag]] (Monat 1–12), limit: Stück/Tag, protected: true }
+window.RULES_ZH = {
+  title: "Kanton Zürich – Fischereivorschriften",
+  valid: "gültig ab 1.1.2026",
+  url: "https://www.zh.ch/content/dam/zhweb/bilder-dokumente/themen/umwelt-tiere/tiere/fischerei-und-jagd/fischerei/verf%C3%BCgungen/fischereivorschriften_auszug_fuer_die_angelfischerei_202603.pdf",
+  all: [
+    "Angeln mit der Absicht, die Fische wieder freizulassen, ist verboten (Tierschutzverordnung). Zurücksetzen nur aus ökologischem Grund, z. B. untermassig oder geschont.",
+    "Sachkundenachweis (SaNa) nötig für Berechtigungen ab 1 Monat. Patent bzw. Karte und SaNa immer mitführen (physisch oder digital).",
+    "Behaltene Fische sofort betäuben und töten. Fische ab 22 cm danach sofort entbluten oder ausnehmen.",
+    "Untermassige oder in der Schonzeit gefangene Fische sofort sorgfältig mit nassen Händen zurücksetzen. Hälterung lebender Fische ist verboten.",
+    "Nur tote Köderfische, und nur aus dem Gewässer, in dem sie verwendet werden. Köderfischfang für den Eigenbedarf mit Aquarienkescher, Köderfischflasche oder -reuse (täglich kontrollieren, mit Kontaktdaten).",
+    "Angelgeräte immer selbst überwachen. 50 m Abstand zu ausgelegten Netzen der Berufsfischer – sie haben Platzvorrecht.",
+    "Watschuhe ohne Filzsohlen. Wathosen, Watschuhe und Feumer vor einem Gewässerwechsel vollständig trocknen lassen.",
+    "Ganzjährig geschützt: vom Aussterben bedrohte Arten wie Aal, Nase, Bitterling und Bachneunauge sowie Stein- und Dohlenkrebs. Krebsfang nur mit Bewilligung.",
+    "Fangstatistik ist Pflicht (verspätet/nicht eingereicht: Fr. 50 Gebühr).",
+    "Jugendliche ab dem Jahr, in dem sie 10 werden, mit SaNa. Bis 14 Jahre vom Boot nur mit einer fischereiberechtigten Begleitperson ab 18. Kinder unter 14 dürfen ohne zusätzliche Geräte mithelfen (Fänge in deine Statistik).",
+    "Bootsfischerei nur von immatrikulierten Booten. Fischen aus einem Boot, das mit Ruder oder Motor bewegt wird, gilt als Schleppangeln (bei Tag weisser Ball).",
+    "Seit 1.4.2025 Schiffsmelde- und Reinigungspflicht: Immatrikulierte Boote brauchen eine gültige Einwasserungsfreigabe für das Gewässer.",
+    "Fachanlagen und geschlossene Uferpflanzenbestände (z. B. Schilf) nicht betreten. Fischaufstiegshilfen sind Schongebiet.",
+  ],
+  sets: {
+    zuerichsee: {
+      name: "Zürichsee & Obersee",
+      scope: "Ausführungsbestimmungen über die Fischerei im Zürichsee und Obersee (gilt auch im SZ- und SG-Teil)",
+      sp: {
+        Seeforelle: { label: "Forellen", min: 40, closed: [[10, 1], [12, 25]], limit: 4 },
+        Bachforelle: { label: "Forellen", min: 40, closed: [[10, 1], [12, 25]], limit: 4 },
+        Seesaibling: { min: 25, closed: [[10, 1], [12, 25]], limit: 5 },
+        "Äsche": { protected: true, min: 32 },
+        Felchen: { label: "Felchenartige", min: 25, closed: [[11, 20], [12, 31]], limit: 10 },
+        Hecht: { limit: 5 },
+        Egli: { limit: 50 },
+      },
+      times: "Angeln erlaubt: Sommerzeit 04.00–23.00 Uhr, übrige Zeit 05.00–22.00 Uhr.",
+      gear: [
+        "Uferfischerei mit Patent: 2 Ruten oder Schnüre (keine zusätzliche Freiangel). Vom stehenden Boot: 3 Ruten. Schleppangeln: 10 Köder.",
+        "Bis 5 Köder pro Schnur, höchstens 3 Haken pro Köder. Mehr als ein Köder pro Schnur nur mit Einfachhaken.",
+        "Mehrfachhaken (Zwilling, Drilling) nur ohne Widerhaken. Einfachhaken mit Widerhaken nur mit Sachkundenachweis.",
+        "Fische dürfen nur in der Mundregion gehakt werden. Lebende Köderfische und Senknetz verboten; Köderfischflasche/-reuse nur mit Patent.",
+        "Seitliche Ausleger (Seehunde) höchstens 40 m vom Boot und nur von Sonnenaufgang bis -untergang; unterhalb der Linie Zürichhorn–Wollishofen nur vom 1.11. bis 31.3.",
+        "Tiefseeschleike, Downrigger, Unterwasserseehund, Schlüchli: im tiefen Seeteil (zwischen Wädenswil–Männedorf und Tiefenbrunnen–Kilchberg) ausserhalb der 300-m-Uferzone ganzjährig von Sonnenauf- bis -untergang, im übrigen See nur zeitlich eingeschränkt (Anhang III).",
+      ],
+      free: "Freiangelrecht: Vom Ufer aus ohne Patent mit 1 Rute und 1 Köder an einfachem Haken ohne Widerhaken. Erlaubt sind natürliche Köder, Lebensmittel und Fliegen (bis Hakengrösse 8) mit der Fliegenrute – keine Köderfische.",
+      special: [
+        "Bachmündungen: Vom 16.11. bis 31.1. ist jede Fischerei im Umkreis von 100 m verboten – Hornbach/Wehrenbach, Dorfbach Küsnacht, Erlenbach und Meilen, Aabach und Meilibach Horgen, Feldbach Hombrechtikon, Linthkanal, Jona, Wagnerbach, Aabach Schmerikon, Spreitenbach, Sarenbach.",
+        "Stadt Zürich: Von der Quaibrücke und ihrer Unterführung ist Fischen verboten. Uferfischerei Bürkliplatz (Quaibrücke–Blumenuhr inkl. ZSG-Stege) und Quaibrücke–Badi Utoquai nur 04.00–09.00 Uhr (Sommerzeit) bzw. 05.00–09.00 Uhr. Bootsfischerei bis 100 m oberhalb der Quaibrücke im Sommer nur 04.00–09.30 Uhr.",
+        "Schon- und Netzsperrgebiete (Stadt Zürich, Linthkanalmündung) gemäss Anhang der Vorschriften beachten.",
+      ],
+      permits: [
+        ["Seenpatent (Zürich-, Ober-, Greifen-, Pfäffikersee, Ufer)", "Jahr", "160.–", "60.–"],
+        ["Patent für einen See (Ufer)", "Jahr", "100.–", "35.–"],
+        ["Tagespatent für einen See (Ufer & Boot)", "Tag", "30.–", "12.–"],
+        ["Zusatz Boot (zu Jahrespatent)", "Jahr", "160.–", "70.– (ab 14)"],
+        ["Zusatz Gast (zu Jahrespatent)", "Jahr", "60.–", "60.–"],
+      ],
+    },
+    kleinseen: {
+      name: "Greifensee, Pfäffikersee & Kleinseen",
+      scope: "Greifensee, Pfäffikersee sowie Türler-, Katzen-, Hüttner-, Egel-, Lützel-, Bichel-, Mettmenhasli- und Husemersee und Kleingewässer Ossingen",
+      sp: {
+        Seeforelle: { label: "Bach-/Seeforelle", min: 40, closed: [[10, 1], [12, 25]], limit: 2 },
+        Bachforelle: { label: "Bach-/Seeforelle", min: 40, closed: [[10, 1], [12, 25]], limit: 2 },
+        Felchen: { min: 25, closed: [[11, 20], [12, 31]], limit: 10 },
+        Hecht: { min: 45, closed: [[3, 1], [4, 30]], limit: 5 },
+        Zander: { min: 40, closed: [[4, 1], [5, 31]] },
+        Egli: { limit: 50 },
+        Edelkrebs: { min: 12, closed: [[10, 1], [7, 15]] },
+      },
+      gear: [
+        "Uferfischerei mit Berechtigung: höchstens 2 Ruten oder Handschnüre, nur vom trockenen Ufer (Landen im Wasser stehend erlaubt).",
+        "Vom stehenden Boot: 3 Ruten im Greifen-, Pfäffiker-, Türler-, Katzen- und Egelsee, sonst 2.",
+        "Schleppangeln: 6 Köder im Greifen-, Pfäffiker- und Türlersee, in den anderen Kleinseen 2.",
+        "Bis 5 Köder pro Schnur (mehrere nur mit Einfachhaken), höchstens 3 Haken pro Köder, grundsätzlich ohne Widerhaken. Mit Sachkundeausweis (und Gäste in Begleitung) sind Einzelhaken mit Widerhaken erlaubt.",
+        "Erlaubt: Feumer, Echolot, Downrigger, Seehunde u. ä. für die Schleppfischerei.",
+      ],
+      free: "Freiangelrecht im Greifen-, Pfäffiker- und Türlersee: alle Personen ohne Patent mit 1 Rute vom trockenen Ufer, 1 Köder an einfachem Haken ohne Widerhaken. Natürliche Köder, Lebensmittel und Fliegen (bis Hakengrösse 8) – keine Köderfische.",
+      special: ["In den Schutzzonen von Greifen- und Pfäffikersee (auch entlang der Ufer) sind Lagern, Zelten und Campieren verboten."],
+      permits: [
+        ["Seenpatent (Zürich-, Ober-, Greifen-, Pfäffikersee, Ufer)", "Jahr", "160.–", "60.–"],
+        ["Patent für einen See (Ufer)", "Jahr", "100.–", "35.–"],
+        ["Tagespatent für einen See (Ufer & Boot)", "Tag", "30.–", "12.–"],
+        ["Zusatz Boot (zu Jahrespatent)", "Jahr", "160.–", "70.– (ab 14)"],
+      ],
+    },
+    pacht: {
+      name: "Flüsse, Bäche & Pachtgewässer",
+      scope: "Alle anderen Pachtgewässer und Gewässer mit Sonderrechten im Kanton Zürich (z. B. Limmat, Rhein, Töss, Sihl, Thur, Reuss – jeweils Zürcher Abschnitt)",
+      sp: {
+        Bachforelle: { label: "Forellen", min: 28, closed: [[10, 16], [3, 15]] },
+        Seeforelle: { label: "Forellen", min: 28, closed: [[10, 16], [3, 15]] },
+        "Äsche": { min: 35, closed: [[2, 1], [4, 30]] },
+        Felchen: { min: 25, closed: [[11, 20], [12, 31]] },
+        Hecht: { min: 45, closed: [[3, 1], [4, 30]] },
+        Zander: { min: 40, closed: [[4, 1], [5, 31]] },
+        Barbe: { min: 30 },
+        Edelkrebs: { min: 12, closed: [[10, 1], [7, 15]] },
+      },
+      minTable: {
+        head: ["", "F-Revier", "G-Revier", "B-Revier", "Rhein"],
+        rows: [["Forelle", 28, 25, 25, 35], ["Äsche", 35, 35, "–", 35], ["Felchen", 25, 25, "–", 25], ["Hecht", 45, 45, "–", 45], ["Zander", 40, 40, "–", 40], ["Barbe", 30, 30, "–", 30], ["Edelkrebs", 12, 12, 12, 12]],
+        note: "F = Flussrevier, G = Forellengewässer mit gemischtem Bestand/Weiher, B = Bach mit vorwiegend Forellen. Die Kategorie steht im Revierverzeichnis bzw. auf deiner Fischereikarte.",
+      },
+      gear: [
+        "1 Angelrute mit 1 Köder – vom Ufer, watend oder vom Boot (wo Boote erlaubt sind). Mit künstlichen Fliegen oder Nymphen 2 Köder.",
+        "Im Rhein und in der Limmat sind 2 Ruten erlaubt.",
+        "In Fliessgewässern der Kategorien G und B nur während der Forellensaison fischen. Weiher dürfen ganzjährig befischt werden.",
+        "Fischaufstiegshilfen (Fischpässe, Umgehungsgewässer) dürfen nicht befischt werden.",
+        "Pächter dürfen mit Zustimmung der FJV strengere Regeln erlassen – Bestimmungen auf der Karte beachten.",
+      ],
+      special: ["Fischen nur mit gültiger Fischereikarte (Angler-, Gäste-, Jugend- oder Tageskarte des Pachtreviers). Die Tageskarte kostet Fr. 30."],
+      permits: [
+        ["Flusspatent Rhein 32 (inkl. Boot) & Limmat 358 (Ufer)", "Jahr", "170.–", "60.–"],
+        ["Flusspatent Rhein 32 & Limmat 358", "Tag", "30.–", "12.–"],
+        ["Tageskarte Pachtrevier", "Tag", "30.–", ""],
+      ],
+    },
+  },
+  rhein: { Bachforelle: 35, Seeforelle: 35 },
+  kleinseen: ["greifensee", "pfäffikersee", "pfaffikersee", "türlersee", "turlersee", "katzensee", "hüttnersee", "huttnersee", "egelsee", "lützelsee", "lutzelsee", "bichelsee", "mettmenhaslisee", "husemersee"],
+};
