@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="styles.css?v=20">
+  <link rel="stylesheet" href="styles.css?v=21">
 </head>
 <body>
   <!-- Icon-Sprite -->
@@ -28,6 +28,7 @@
       <symbol id="i-map" viewBox="0 0 24 24"><path d="M9 4 3 6.2v13.8l6-2.2 6 2.2 6-2.2V4l-6 2.2L9 4z"/><path d="M9 4v13.8M15 6.2V20"/></symbol>
       <symbol id="i-fish" viewBox="0 0 24 24"><path d="M2.5 12c2.6-3.7 6.2-5.6 10.3-5.6 3.3 0 6 1.9 7.7 5.6-1.7 3.7-4.4 5.6-7.7 5.6-4.1 0-7.7-1.9-10.3-5.6z"/><path d="M2.5 12 1 8.5M2.5 12 1 15.5"/><circle cx="16.3" cy="11" r=".9" fill="currentColor" stroke="none"/></symbol>
       <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M17.5 19H8a5 5 0 1 1 1.3-9.83A6 6 0 0 1 20.9 12 3.5 3.5 0 0 1 17.5 19z"/></symbol>
+      <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-12.4 7.6L3.5 20.5l1.4-4.6A8.5 8.5 0 1 1 21 11.5z"/><path d="M8.5 10h7M8.5 13.5h4.5"/></symbol>
       <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 19.5V5a2 2 0 0 1 2-2h14v15H6a2 2 0 0 0-2 2v.5A1.5 1.5 0 0 0 5.5 22H20"/><path d="M8 7h8M8 11h6"/></symbol>
       <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"/><circle cx="15" cy="6" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="18" r="2"/></symbol>
       <symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
@@ -90,6 +91,7 @@
           <button class="fab-sm" id="btnFitWater" aria-label="Gewässer zeigen"><svg class="ic"><use href="#i-water"/></svg></button>
           <button class="fab-sm" id="btnLegend" aria-label="Legende"><svg class="ic"><use href="#i-info"/></svg></button>
         </div>
+        <div class="depth-scale" id="depthScale" hidden></div>
         <button class="fab" data-action="new-catch"><svg class="ic"><use href="#i-plus"/></svg>Fang</button>
       </section>
 
@@ -118,11 +120,12 @@
           <button class="on" data-seg="fish">Fischarten</button>
           <button data-seg="tech">Techniken</button>
           <button data-seg="rules">Regeln</button>
-          <button data-seg="ai">Berater</button>
         </div>
         <label class="search" id="guideSearchWrap"><svg class="ic sm"><use href="#i-search"/></svg><input id="guideSearch" type="search" placeholder="Suchen"></label>
         <div id="guide"></div>
       </section>
+
+      <section id="view-ai" class="view"><div id="advisor"></div></section>
     </main>
 
     <nav class="tabbar">
@@ -131,6 +134,7 @@
       <button data-view="catches"><svg class="ic"><use href="#i-fish"/></svg><span>Fänge</span></button>
       <button data-view="forecast"><svg class="ic"><use href="#i-cloud"/></svg><span>Prognose</span></button>
       <button data-view="guide"><svg class="ic"><use href="#i-book"/></svg><span>Wissen</span></button>
+      <button data-view="ai"><svg class="ic"><use href="#i-chat"/></svg><span>Berater</span></button>
     </nav>
   </div>
 
@@ -155,7 +159,7 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
-  <script src="data.js?v=20"></script>
-  <script src="app.js?v=20"></script>
+  <script src="data.js?v=21"></script>
+  <script src="app.js?v=21"></script>
 </body>
 </html>

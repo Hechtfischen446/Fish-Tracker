@@ -1,0 +1,399 @@
+{
+ "zugersee": {
+  "file": "images/bathy/zugersee.png",
+  "keys": [
+   "zug"
+  ],
+  "bounds": [
+   [
+    47.053827,
+    8.438934
+   ],
+   [
+    47.189579,
+    8.53381
+   ]
+  ],
+  "maxDepth": 198,
+  "res": 4
+ },
+ "zuerichsee": {
+  "file": "images/bathy/zuerichsee.png",
+  "keys": [
+   "zurich"
+  ],
+  "bounds": [
+   [
+    47.194603,
+    8.520799
+   ],
+   [
+    47.368735,
+    8.828718
+   ]
+  ],
+  "maxDepth": 136,
+  "res": 8
+ },
+ "vierwaldstaettersee": {
+  "file": "images/bathy/vierwaldstaettersee.png",
+  "keys": [
+   "vierwaldstaettersee"
+  ],
+  "bounds": [
+   [
+    46.881888,
+    8.26521
+   ],
+   [
+    47.092007,
+    8.637137
+   ]
+  ],
+  "maxDepth": 214,
+  "res": 8
+ },
+ "aegerisee": {
+  "file": "images/bathy/aegerisee.png",
+  "keys": [
+   "aegerisee"
+  ],
+  "bounds": [
+   [
+    47.097608,
+    8.584656
+   ],
+   [
+    47.143254,
+    8.651527
+   ]
+  ],
+  "maxDepth": 83,
+  "res": 4
+ },
+ "baldeggersee": {
+  "file": "images/bathy/baldeggersee.png",
+  "keys": [
+   "baldegg"
+  ],
+  "bounds": [
+   [
+    47.17286,
+    8.230086
+   ],
+   [
+    47.218207,
+    8.283556
+   ]
+  ],
+  "maxDepth": 66,
+  "res": 4
+ },
+ "bielersee": {
+  "file": "images/bathy/bielersee.png",
+  "keys": [
+   "biel"
+  ],
+  "bounds": [
+   [
+    47.031446,
+    7.069533
+   ],
+   [
+    47.139807,
+    7.241299
+   ]
+  ],
+  "maxDepth": 74,
+  "res": 4
+ },
+ "brienzersee": {
+  "file": "images/bathy/brienzersee.png",
+  "keys": [
+   "brienz"
+  ],
+  "bounds": [
+   [
+    46.679565,
+    7.856887
+   ],
+   [
+    46.761411,
+    8.053857
+   ]
+  ],
+  "maxDepth": 256,
+  "res": 4
+ },
+ "hallwilersee": {
+  "file": "images/bathy/hallwilersee.png",
+  "keys": [
+   "hallwil"
+  ],
+  "bounds": [
+   [
+    47.245098,
+    8.191528
+   ],
+   [
+    47.326402,
+    8.245581
+   ]
+  ],
+  "maxDepth": 46,
+  "res": 4
+ },
+ "lacdejoux": {
+  "file": "images/bathy/lacdejoux.png",
+  "keys": [
+   "joux"
+  ],
+  "bounds": [
+   [
+    46.602924,
+    6.236252
+   ],
+   [
+    46.675935,
+    6.342254
+   ]
+  ],
+  "maxDepth": 34,
+  "res": 4
+ },
+ "lungernsee": {
+  "file": "images/bathy/lungernsee.png",
+  "keys": [
+   "lungern"
+  ],
+  "bounds": [
+   [
+    46.777732,
+    8.145717
+   ],
+   [
+    46.813962,
+    8.185495
+   ]
+  ],
+  "maxDepth": 67,
+  "res": 4
+ },
+ "murtensee": {
+  "file": "images/bathy/murtensee.png",
+  "keys": [
+   "murten"
+  ],
+  "bounds": [
+   [
+    46.89634,
+    7.018146
+   ],
+   [
+    46.968707,
+    7.149935
+   ]
+  ],
+  "maxDepth": 45,
+  "res": 4
+ },
+ "rotsee": {
+  "file": "images/bathy/rotsee.png",
+  "keys": [
+   "rotsee"
+  ],
+  "bounds": [
+   [
+    47.055535,
+    8.294166
+   ],
+   [
+    47.082819,
+    8.334099
+   ]
+  ],
+  "maxDepth": 16,
+  "res": 4
+ },
+ "sarnersee": {
+  "file": "images/bathy/sarnersee.png",
+  "keys": [
+   "sarnersee"
+  ],
+  "bounds": [
+   [
+    46.84025,
+    8.185869
+   ],
+   [
+    46.894667,
+    8.252227
+   ]
+  ],
+  "maxDepth": 50,
+  "res": 4
+ },
+ "sempachersee": {
+  "file": "images/bathy/sempachersee.png",
+  "keys": [
+   "sempach"
+  ],
+  "bounds": [
+   [
+    47.110453,
+    8.110585
+   ],
+   [
+    47.17399,
+    8.203706
+   ]
+  ],
+  "maxDepth": 86,
+  "res": 4
+ },
+ "silsersee": {
+  "file": "images/bathy/silsersee.png",
+  "keys": [
+   "sils"
+  ],
+  "bounds": [
+   [
+    46.405723,
+    9.701698
+   ],
+   [
+    46.44274,
+    9.755229
+   ]
+  ],
+  "maxDepth": 71,
+  "res": 4
+ },
+ "silvaplanersee": {
+  "file": "images/bathy/silvaplanersee.png",
+  "keys": [
+   "silvaplana"
+  ],
+  "bounds": [
+   [
+    46.431351,
+    9.767849
+   ],
+   [
+    46.47739,
+    9.821843
+   ]
+  ],
+  "maxDepth": 77,
+  "res": 4
+ },
+ "thunersee": {
+  "file": "images/bathy/thunersee.png",
+  "keys": [
+   "thun"
+  ],
+  "bounds": [
+   [
+    46.653514,
+    7.621532
+   ],
+   [
+    46.753037,
+    7.844358
+   ]
+  ],
+  "maxDepth": 216,
+  "res": 5
+ },
+ "walensee": {
+  "file": "images/bathy/walensee.png",
+  "keys": [
+   "walensee"
+  ],
+  "bounds": [
+   [
+    47.106762,
+    9.098819
+   ],
+   [
+    47.145971,
+    9.310819
+   ]
+  ],
+  "maxDepth": 143,
+  "res": 4
+ },
+ "lacneuchatel": {
+  "file": "images/bathy/lacneuchatel.png",
+  "keys": [
+   "neuchatel"
+  ],
+  "bounds": [
+   [
+    46.777286,
+    6.622728
+   ],
+   [
+    47.049436,
+    7.071996
+   ]
+  ],
+  "maxDepth": 150,
+  "res": 10
+ },
+ "lagomaggiore": {
+  "file": "images/bathy/lagomaggiore.png",
+  "keys": [
+   "maggiore"
+  ],
+  "bounds": [
+   [
+    46.051566,
+    8.679038
+   ],
+   [
+    46.188617,
+    8.86341
+   ]
+  ],
+  "maxDepth": 302,
+  "res": 4
+ },
+ "bodensee": {
+  "file": "images/bathy/bodensee.png",
+  "keys": [
+   "bodensee",
+   "untersee"
+  ],
+  "bounds": [
+   [
+    47.467479,
+    8.845037
+   ],
+   [
+    47.823912,
+    9.775114
+   ]
+  ],
+  "maxDepth": 251,
+  "res": 20
+ },
+ "lacleman": {
+  "file": "images/bathy/lacleman.png",
+  "keys": [
+   "geneva"
+  ],
+  "bounds": [
+   [
+    46.19688,
+    6.122375
+   ],
+   [
+    46.527159,
+    6.933357
+   ]
+  ],
+  "maxDepth": 310,
+  "res": 20
+ }
+}
