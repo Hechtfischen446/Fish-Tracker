@@ -772,3 +772,50 @@ dialog { border: 1px solid color-mix(in srgb, var(--neon) 25%, transparent); }
 #homeScoreB .tag, #fcScoreB .tag { margin: 0; white-space: nowrap; font-family: var(--font-tech, inherit); }
 .score-legend { font-size: .72rem; color: var(--ink-3); margin: 8px 0 8px; display: flex; gap: 12px; flex-wrap: wrap; }
 .score-legend .ic { vertical-align: -3px; }
+
+/* Fotos nie verzerren */
+.photo-prev { align-self: flex-start; width: auto; height: auto; object-fit: contain; }
+.leaflet-popup-content img { height: auto; object-fit: contain; }
+img.thumb { object-fit: cover; }
+
+/* Spot-Details */
+.spot-facts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.stars-txt { color: var(--gold, #e2a03f); letter-spacing: 1px; }
+.catch-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+@media (min-width: 560px) { .catch-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.catch-card { all: unset; cursor: pointer; display: flex; flex-direction: column; border-radius: 14px; overflow: hidden; background: var(--surface-2); border: 1px solid var(--line); }
+.catch-card img, .catch-card .cc-ph { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: grid; place-items: center; color: var(--ink-3); background: var(--surface-2); }
+.cc-body { padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cc-t { font-weight: 700; font-size: .88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cc-s { font-size: .74rem; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Spot-Index auf der Karte */
+.mk-wrap { position: relative; width: 30px; height: 30px; }
+.mk-idx { position: absolute; top: -9px; right: -16px; min-width: 24px; padding: 1px 5px; border-radius: 99px; color: #fff; font: 700 11px/16px var(--font-tech, var(--font)); text-align: center; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,.35); }
+
+/* Legende */
+.legend-list { display: flex; flex-direction: column; gap: 12px; }
+.lg-row { display: flex; gap: 12px; align-items: flex-start; font-size: .9rem; }
+.lg-sym { width: 48px; flex-shrink: 0; display: grid; place-items: center; min-height: 30px; }
+.lg-circle { width: 26px; height: 26px; border-radius: 50%; border: 2px dashed; }
+.lg-line { width: 34px; height: 4px; border-radius: 2px; }
+.lg-ramp { width: 44px; height: 16px; border-radius: 4px; }
+.lg-relief { background: linear-gradient(90deg, #f2f2f2, #9a9a9a 45%, #e8e8e8 70%, #6f6f6f); }
+.lg-aerial { background: linear-gradient(90deg, #8fe3d6, #3bb5c4 35%, #1b6f9a 70%, #0d3557); }
+
+/* KI-Berater */
+.chat-log { display: flex; flex-direction: column; gap: 10px; max-height: 52vh; overflow-y: auto; padding: 4px 2px; }
+.chat-msg { padding: 10px 13px; border-radius: 16px; font-size: .92rem; line-height: 1.45; max-width: 88%; word-wrap: break-word; }
+.chat-msg p { margin: 0 0 6px; } .chat-msg p:last-child { margin: 0; }
+.chat-msg ul { margin: 4px 0 6px; padding-left: 18px; } .chat-msg li { margin: 2px 0; }
+.chat-msg.user { align-self: flex-end; background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; border-bottom-right-radius: 5px; }
+.chat-msg.assistant { align-self: flex-start; background: var(--surface-2); border: 1px solid var(--line); border-bottom-left-radius: 5px; }
+.chat-msg.err { border-color: var(--bad); color: var(--bad); }
+.chat-empty { text-align: center; color: var(--ink-2); padding: 18px 8px; font-size: .9rem; }
+.chat-empty .ic { color: var(--accent); margin-bottom: 6px; }
+.chat-input { display: flex; gap: 8px; }
+.chat-input input { flex: 1; }
+.typing { display: inline-flex; gap: 4px; } .typing i { width: 6px; height: 6px; border-radius: 50%; background: var(--ink-3); animation: blink 1s infinite; }
+.typing i:nth-child(2) { animation-delay: .2s; } .typing i:nth-child(3) { animation-delay: .4s; }
+@keyframes blink { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+#chatSugg .chip { white-space: nowrap; }
