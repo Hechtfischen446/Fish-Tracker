@@ -388,6 +388,70 @@
     const score = Math.max(5, Math.min(100, Math.round(30 + 45 * (1 - dist / 0.25) + Math.min(bonus, 25))));
     return { day, periods, sun, ill, score };
   }
+  // Temperaturbereich einer Fischart aus dem Text (z. B. "ideal 15–22 °C")
+  function tempRange(f) {
+    const t = f.temp || "";
+    const all = [...t.matchAll(/(\d+)\s*[–-]\s*(\d+)\s*°C/g)];
+    if (all.length) { const m = all[all.length - 1]; return [+m[1], +m[2]]; }
+    const u = t.match(/unter (\d+)/); if (u) return [2, +u[1]];
+    const a = t.match(/ab ca\. (\d+)/); if (a) return [+a[1], +a[1] + 10];
+    return null;
+  }
+  // Wie aktiv sind die Fischarten DIESES Gewässers? (0–1) – Saison, Laichzeit und Wassertemperatur
+  function fishActivity(w, date, temp) {
+    const names = speciesOfWater(w);
+    const list = (names.length ? names.map((n) => window.FISH_GUIDE.find((f) => f.name === n)) : window.FISH_GUIDE).filter(Boolean);
+    const m = date.getMonth();
+    const rated = list.map((f) => {
+      const season = f.spawn.includes(m) ? 0.1 : f.months[m] / 3;
+      const r = tempRange(f);
+      let tf = 1;
+      if (temp != null && r) tf = temp >= r[0] && temp <= r[1] ? 1 : Math.exp(-(((temp < r[0] ? r[0] - temp : temp - r[1]) / 4) ** 2));
+      return { name: f.name, v: season * tf };
+    }).sort((a, b) => b.v - a.v);
+    const top = rated.slice(0, 3);
+    return { v: top.length ? top.reduce((a, x) => a + x.v, 0) / top.length : 0.5, best: rated.filter((x) => x.v >= 0.45).slice(0, 3).map((x) => x.name) };
+  }
+  // Wetter eines Tages am Gewässer (0–1) aus der Stundenprognose
+  function dayWeather(fc, day) {
+    if (!fc?.hourly) return null;
+    const k = toDateKey(day), H = fc.hourly;
+    const idx = H.time.map((t, i) => [t, i]).filter(([t]) => t.slice(0, 10) === k).map(([, i]) => i);
+    if (idx.length < 12 || H.temperature_2m[idx[0]] == null) return null;
+    const p = idx.map((i) => H.surface_pressure[i]).filter((v) => v != null);
+    const dp = p.length > 1 ? p[p.length - 1] - p[0] : 0;
+    const gust = Math.max(...idx.map((i) => H.wind_gusts_10m?.[i] ?? 0));
+    const codes = idx.map((i) => H.weather_code?.[i] ?? 0);
+    const rainH = idx.filter((i) => (H.precipitation?.[i] ?? 0) >= 0.2).length;
+    let v = 0.55;
+    if (dp <= -2) v += 0.25; else if (dp <= -0.8) v += 0.12; else if (dp >= 3) v -= 0.15;
+    if (codes.some((c) => c >= 95)) v -= 0.35;
+    if (codes.filter((c) => c === 3 || c === 2).length >= 8) v += 0.08;
+    if (rainH >= 1 && rainH <= 6) v += 0.05; else if (rainH > 12) v -= 0.08;
+    if (gust >= 55) v -= 0.3; else if (gust >= 40) v -= 0.12;
+    return Math.max(0, Math.min(1, v));
+  }
+  function dayWaterTemp(w, day) {
+    if (!w) return null;
+    const ld = lakeData(w);
+    if (ld) return surfaceAt(ld, new Date(day.getFullYear(), day.getMonth(), day.getDate(), 12).getTime());
+    return toDateKey(day) === toDateKey(new Date()) ? state.live?.temp?.[w.id] ?? null : null;
+  }
+  function waterIndex(w, sol, fc) {
+    if (!w) return { score: sol.score, parts: null };
+    const temp = dayWaterTemp(w, sol.day);
+    const fa = fishActivity(w, sol.day, temp);
+    const wx = dayWeather(fc, sol.day);
+    const parts = [[0.45, sol.score / 100], [0.35, fa.v]];
+    if (wx != null) parts.push([0.2, wx]);
+    const wsum = parts.reduce((a, [g]) => a + g, 0);
+    const score = Math.max(5, Math.min(100, Math.round((100 * parts.reduce((a, [g, v]) => a + g * v, 0)) / wsum)));
+    sol.wf = fa.v; // auch der stündliche Verlauf berücksichtigt das Gewässer
+    return { score, parts: { sol: sol.score, fish: Math.round(fa.v * 100), wx: wx == null ? null : Math.round(wx * 100), temp, best: fa.best } };
+  }
+  const indexBreakdown = (bi) => bi.parts ? `<span class="tag" title="Mond & Sonne">${ic("moon", "xs")}${bi.parts.sol}</span><span class="tag" title="Fischarten aktiv">${ic("fish", "xs")}${bi.parts.fish}</span>${bi.parts.wx != null ? `<span class="tag" title="Wetter">${ic("cloud", "xs")}${bi.parts.wx}</span>` : ""}` : "";
+  const ringHtml = (bi) => `<div class="score-ring" style="--p:${bi.score};--sc:${scoreColor(bi.score)}"><span>${bi.score}</span></div>`;
+
   const scoreLabel = (s) => (s >= 80 ? "Hervorragend" : s >= 65 ? "Sehr gut" : s >= 50 ? "Gut" : s >= 35 ? "Mittel" : "Mässig");
   const scoreColor = (s) => (s >= 65 ? "var(--good)" : s >= 45 ? "var(--warn)" : "var(--bad)");
 
@@ -892,6 +956,8 @@
   function openCatchForm(c = {}) {
     const existing = c.id ? state.catches.find((x) => x.id === c.id) : null;
     const o = { date: toLocalInput(new Date()), waterId: state.activeId, ...c };
+    const presetSpot = !c.id && o.spotId ? state.spots.find((x) => x.id === o.spotId) : null;
+    if (presetSpot && presetSpot.lat != null && c.lat == null) { o.lat = presetSpot.lat; o.lng = presetSpot.lng; }
     if (o.lat == null && !existing) { const p = state.pos; if (p) Object.assign(o, p); else { const m = map.getCenter(); o.lat = m.lat; o.lng = m.lng; } }
     if (!c.waterId && !existing && o.lat != null) o.waterId = guessWater(o)?.id || o.waterId;
     let photo = o.photo || null;
@@ -933,6 +999,14 @@
       onDelete: existing ? async () => { await DB.del("catches", existing.id); await reload(); toast("Fang gelöscht"); } : null,
     });
     $("#fWater").addEventListener("change", (e) => { o.spotId = null; $("#fSpot").innerHTML = spotOpts(e.target.value); $("#dlSpecies").innerHTML = speciesOptions(waterById(e.target.value)); });
+    // Spot gewählt → Position des Spots übernehmen (danach lässt sie sich per GPS/Karte noch anpassen)
+    $("#fSpot").addEventListener("change", (e) => {
+      const sp = state.spots.find((x) => x.id === e.target.value);
+      if (!sp || sp.lat == null) return;
+      $('[name="lat"]').value = sp.lat; $('[name="lng"]').value = sp.lng;
+      $("#fCoord").textContent = `${(+sp.lat).toFixed(5)}, ${(+sp.lng).toFixed(5)} · Spot: ${sp.name}`;
+      if (sp.waterId && $("#fWater").value !== sp.waterId) $("#fWater").value = sp.waterId;
+    });
     wireLocation((d) => openCatchForm({ ...(existing || {}), ...d, photo, id: existing?.id }));
     $("#fPhoto").addEventListener("change", async (e) => {
       const f = e.target.files[0];
@@ -1302,6 +1376,7 @@
     const th = ld ? thermocline(ld.profile) : null;
     const isLake = w.kind === "lake" || w.kind === "reservoir" || w.kind === "pond";
     const sol = solunar(new Date(), w.lat, w.lng);
+    const bi = waterIndex(w, sol, null);
     const cs = state.catches.filter((x) => x.waterId === w.id).sort((a, b) => new Date(b.date) - new Date(a.date));
     const sp = state.spots.filter((x) => x.waterId === w.id);
     const month = new Date().getMonth();
@@ -1320,7 +1395,7 @@
           <div><div class="k">Fläche</div><div class="v">${c.area ? `${nf(c.area, 1)} <small>km²</small>` : "–"}</div></div>
           <div><div class="k">Max. Tiefe</div><div class="v">${c.depth ? `${c.depth} <small>m</small>` : "–"}</div></div>
           <div><div class="k">Höhe</div><div class="v">${c.alt ? `${c.alt} <small>m ü. M.</small>` : "–"}</div></div></div>` : ""}
-        <div class="insight">${ic("info", "sm")}<div id="homeInsight">${homeInsight(w, sol, th, surf)}</div></div>
+        <div class="insight">${ic("info", "sm")}<div id="homeInsight">${homeInsight(w, sol, th, surf, bi)}</div></div>
       </div>
 
       <div class="tiles" id="homeTiles">
@@ -1358,12 +1433,14 @@
 
       <div class="card">
         <div class="card-head"><h3>Beisszeiten heute</h3><button class="link-btn" data-action="goto" data-view="forecast">Prognose</button></div>
-        <div class="score-row">
-          <div class="score-ring" style="--p:${sol.score};--sc:${scoreColor(sol.score)}"><span>${sol.score}</span></div>
-          <div class="score-meta"><div class="t">${scoreLabel(sol.score)}</div>
+        <div class="score-row" id="homeScore">
+          ${ringHtml(bi)}
+          <div class="score-meta"><div class="t" id="homeScoreT">${scoreLabel(bi.score)}</div>
+          <div class="s" id="homeScoreB">${indexBreakdown(bi)}</div>
           <div class="s">${ic("moon", "xs")}${phaseName(sol.ill.phase)} · ${Math.round(sol.ill.fraction * 100)} %</div>
           <div class="s">${ic("sun", "xs")}${hm(sol.sun.sunrise)} – ${hm(sol.sun.sunset)}</div></div>
         </div>
+        <div class="score-legend"><span>${ic("moon", "xs")} Mond & Sonne</span><span>${ic("fish", "xs")} Fischarten aktiv</span><span>${ic("cloud", "xs")} Wetter</span></div>
         ${sol.periods.filter((p) => p.kind === "major").map((p) => `<div class="period"><span class="when">${hm(p.from)} – ${hm(p.to)}</span><span class="muted small">Hauptbeisszeit${p.twilight ? " · Dämmerung" : ""}</span></div>`).join("")}
       </div>
 
@@ -1406,8 +1483,10 @@
     $(".v", el).innerHTML = v ?? `<span class="faint" style="font-size:1rem">–</span>`;
     $(".d", el).innerHTML = d || "&nbsp;";
   }
-  function homeInsight(w, sol, th, surf) {
-    const parts = [`Beissindex heute <b>${sol.score}</b> (${scoreLabel(sol.score).toLowerCase()})`];
+  function homeInsight(w, sol, th, surf, bi) {
+    const sc = bi ? bi.score : sol.score;
+    const parts = [`Beissindex heute <b>${sc}</b> (${scoreLabel(sc).toLowerCase()})`];
+    if (bi?.parts?.best?.length) parts.push(`aktiv: <b>${bi.parts.best.map(esc).join(", ")}</b>`);
     if (surf != null) parts.push(`Wasser <b>${nf(surf)} °C</b>`);
     if (th?.stratified) parts.push(`Sprungschicht bei <b>~${nf(th.depth, 0)} m</b>`);
     const next = sol.periods.find((p) => p.kind === "major" && p.to > new Date());
@@ -1439,11 +1518,20 @@
 
   async function fillHomeLive(w) {
     renderHotspotCard(w);
-    if (hotspotsOn() && navigator.onLine) forecast({ lat: w.lat, lng: w.lng }).then((fc) => {
+    const updateIndex = (fc) => {
+      if (activeWater() !== w || !$("#homeScore")) return;
+      const sol = solunar(new Date(), w.lat, w.lng), bi = waterIndex(w, sol, fc);
+      $("#homeScore .score-ring").outerHTML = ringHtml(bi);
+      $("#homeScoreT").textContent = scoreLabel(bi.score);
+      $("#homeScoreB").innerHTML = indexBreakdown(bi);
+      const ld = lakeData(w);
+      $("#homeInsight").innerHTML = homeInsight(w, sol, ld ? thermocline(ld.profile) : null, ld ? surfaceAt(ld) : null, bi);
+    };
+    if (navigator.onLine) forecast({ lat: w.lat, lng: w.lng }).then((fc) => {
       state.live.wx[w.id] = fc.current;
       const tr = pressureTrend(fc);
       if (tr) state.live.dp[w.id] = tr.past;
-      if (activeWater() === w) renderHotspotCard(w);
+      if (activeWater() === w) { renderHotspotCard(w); updateIndex(fc); }
     }).catch(() => {});
     $("#btnWxDays")?.addEventListener("click", () => {
       state.wxOpen = !state.wxOpen;
@@ -1461,7 +1549,7 @@
       const st = (x) => `${esc(x.station.name)} · ${new Date(x.t).toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" })}`;
       if (h?.height) setTile("tLevel", `${nf(h.height.val, 2)}<small>m ü. M.</small>`, `BAFU · ${st(h.height)}`); else setTile("tLevel", null, "Keine Station");
       if ($("#tFlow")) { if (h?.flow) setTile("tFlow", `${nf(h.flow.val, 0)}<small>m³/s</small>`, `BAFU · ${st(h.flow)}`); else setTile("tFlow", null, "Keine Station"); }
-      if (h?.temperature) { state.live.temp[w.id] = h.temperature.val; if (!ld) renderHotspotCard(w); }
+      if (h?.temperature) { state.live.temp[w.id] = h.temperature.val; if (!ld) { renderHotspotCard(w); forecast({ lat: w.lat, lng: w.lng }).then(updateIndex).catch(() => updateIndex(null)); } }
       if (!ld) { if (h?.temperature) setTile("tWater", `${nf(h.temperature.val)}<small>°C</small>`, `BAFU · ${st(h.temperature)}`); else setTile("tWater", null, "Keine Messung"); }
     }).catch(() => { setTile("tLevel", null, "Nicht erreichbar"); if (!ld) setTile("tWater", null, "Nicht erreichbar"); if ($("#tFlow")) setTile("tFlow", null, "Nicht erreichbar"); });
     if (!ld && !hydroStations(w).length) setTile("tWater", null, "Keine Messung");
@@ -1512,6 +1600,7 @@
     const place = forecastPlace();
     const d = state.day;
     const sol = solunar(d, place.lat, place.lng);
+    const bi = waterIndex(w, sol, null);
     const spots = w ? state.spots.filter((s) => s.waterId === w.id) : [];
     const isToday = toDateKey(d) === toDateKey(new Date());
     const t0 = +sol.day, span = 864e5, pct = (t) => Math.max(0, Math.min(100, ((t - t0) / span) * 100));
@@ -1531,12 +1620,14 @@
 
       <div class="card">
         <div class="card-head"><h3>Beisszeiten · ${esc(d.toLocaleDateString("de-CH", { weekday: "long", day: "numeric", month: "long" }))}</h3></div>
-        <div class="score-row">
-          <div class="score-ring" style="--p:${sol.score};--sc:${scoreColor(sol.score)}"><span>${sol.score}</span></div>
-          <div class="score-meta"><div class="t">${scoreLabel(sol.score)}</div>
+        <div class="score-row" id="fcScore">
+          ${ringHtml(bi)}
+          <div class="score-meta"><div class="t" id="fcScoreT">${scoreLabel(bi.score)}</div>
+            <div class="s" id="fcScoreB">${indexBreakdown(bi)}</div>
             <div class="s">${ic("moon", "xs")}${phaseName(sol.ill.phase)} · ${Math.round(sol.ill.fraction * 100)} %</div>
             <div class="s">${ic("sun", "xs")}${hm(sol.sun.sunrise)} – ${hm(sol.sun.sunset)}</div></div>
         </div>
+        <div class="score-legend"><span>${ic("moon", "xs")} Mond & Sonne</span><span>${ic("fish", "xs")} Fischarten aktiv</span><span>${ic("cloud", "xs")} Wetter</span></div>
         <div class="timeline">${tl}</div>
         <div class="tl-scale"><span>0</span><span>6</span><span>12</span><span>18</span><span>24 Uhr</span></div>
         <div class="legend"><span><i style="background:var(--good)"></i>Hauptbeisszeit</span><span><i style="background:var(--warn)"></i>Nebenbeisszeit</span><span><i style="background:color-mix(in srgb,var(--ink) 15%,transparent)"></i>Nacht</span></div>
@@ -1547,6 +1638,7 @@
         <div id="periodsDetail">${periodsHtml(sol, null, w)}</div>
         <details class="explain"><summary>${ic("info", "xs")}Wie wird das berechnet?</summary>
           <p>Nach der <b>Solunar-Theorie</b> sind Fische aktiver, wenn der Mond im Zenit oder Nadir steht (Hauptbeisszeiten, ±1 h) und bei Mondauf- und -untergang (Nebenbeisszeiten, ±30 min). Bei Neu- und Vollmond ist der Effekt am stärksten. Fallen diese Zeiten in die <b>Morgen- oder Abenddämmerung</b>, steigt die Aktivität zusätzlich.</p>
+          <p>Der <b>Beissindex</b> setzt sich pro Gewässer zusammen aus <b>Mond & Sonne</b> (45 %), <b>Fischarten aktiv</b> (35 %: passen Jahreszeit und Wassertemperatur zu den Fischarten dieses Gewässers, Laichzeiten zählen negativ) und dem <b>Wetter</b> am Gewässer (20 %).</p>
           <p>Der stündliche Index berücksichtigt ausserdem das <b>Wetter</b>: Fallender Luftdruck und leichter Regen erhöhen ihn, starke Böen, Gewitter und stark steigender Druck senken ihn. Die Werte sind ein Anhaltspunkt, kein Versprechen.</p>
         </details>
       </div>
@@ -1585,7 +1677,7 @@
     const daysEl = $("#days");
     const renderDays = (fc) => {
       daysEl.innerHTML = Array.from({ length: 7 }, (_, i) => {
-        const dd = new Date(+today + i * 864e5), sc = solunar(dd, place.lat, place.lng);
+        const dd = new Date(+today + i * 864e5), sc0 = solunar(dd, place.lat, place.lng), sc = waterIndex(w, sc0, fc);
         const k = toDateKey(dd), j = fc ? fc.daily.time.indexOf(k) : -1;
         const has = j >= 0 && fc.daily.temperature_2m_max[j] != null;
         const [wi, wt] = has ? WMO(fc.daily.weather_code[j]) : ["moon", ""];
@@ -1611,6 +1703,10 @@
     forecast(place).then((fc) => {
       if (currentView !== "forecast") return;
       renderDays(fc);
+      const bi2 = waterIndex(w, sol, fc);
+      $("#fcScore .score-ring").outerHTML = ringHtml(bi2);
+      $("#fcScoreT").textContent = scoreLabel(bi2.score);
+      $("#fcScoreB").innerHTML = indexBreakdown(bi2);
       $("#fcModel").textContent = fc.model;
       const wd = $("#wxDetail");
       if (wd) wd.innerHTML = weatherDaysHtml(fc, toDateKey(d));
@@ -1656,6 +1752,7 @@
     });
     [sol.sun.sunrise, sol.sun.sunset].forEach((s) => { if (s && !isNaN(s)) v += 22 * Math.exp(-((((t - s) / 60e3) / 55) ** 2)); });
     v *= 0.72 + 0.28 * phase;
+    if (sol.wf != null) v *= 0.7 + 0.6 * sol.wf; // Fischarten des Gewässers aktiv?
     const i = hourAt(fc, t);
     if (i >= 0) {
       const H = fc.hourly, p = H.surface_pressure;
