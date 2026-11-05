@@ -956,6 +956,8 @@
   function openCatchForm(c = {}) {
     const existing = c.id ? state.catches.find((x) => x.id === c.id) : null;
     const o = { date: toLocalInput(new Date()), waterId: state.activeId, ...c };
+    const presetSpot = !c.id && o.spotId ? state.spots.find((x) => x.id === o.spotId) : null;
+    if (presetSpot && presetSpot.lat != null && c.lat == null) { o.lat = presetSpot.lat; o.lng = presetSpot.lng; }
     if (o.lat == null && !existing) { const p = state.pos; if (p) Object.assign(o, p); else { const m = map.getCenter(); o.lat = m.lat; o.lng = m.lng; } }
     if (!c.waterId && !existing && o.lat != null) o.waterId = guessWater(o)?.id || o.waterId;
     let photo = o.photo || null;
@@ -997,6 +999,14 @@
       onDelete: existing ? async () => { await DB.del("catches", existing.id); await reload(); toast("Fang gelöscht"); } : null,
     });
     $("#fWater").addEventListener("change", (e) => { o.spotId = null; $("#fSpot").innerHTML = spotOpts(e.target.value); $("#dlSpecies").innerHTML = speciesOptions(waterById(e.target.value)); });
+    // Spot gewählt → Position des Spots übernehmen (danach lässt sie sich per GPS/Karte noch anpassen)
+    $("#fSpot").addEventListener("change", (e) => {
+      const sp = state.spots.find((x) => x.id === e.target.value);
+      if (!sp || sp.lat == null) return;
+      $('[name="lat"]').value = sp.lat; $('[name="lng"]').value = sp.lng;
+      $("#fCoord").textContent = `${(+sp.lat).toFixed(5)}, ${(+sp.lng).toFixed(5)} · Spot: ${sp.name}`;
+      if (sp.waterId && $("#fWater").value !== sp.waterId) $("#fWater").value = sp.waterId;
+    });
     wireLocation((d) => openCatchForm({ ...(existing || {}), ...d, photo, id: existing?.id }));
     $("#fPhoto").addEventListener("change", async (e) => {
       const f = e.target.files[0];
