@@ -686,6 +686,31 @@
     if (w.bbox) map.fitBounds([[w.bbox[0], w.bbox[1]], [w.bbox[2], w.bbox[3]]], { padding: [24, 24], maxZoom: 15 });
     else map.setView([w.lat, w.lng], w.kind === "river" ? 12 : 13);
   }
+  $("#btnLegend").addEventListener("click", () => {
+    const sym = (html, t, d) => `<div class="lg-row"><span class="lg-sym">${html}</span><span><b>${t}</b>${d ? `<br><span class="small muted">${d}</span>` : ""}</span></div>`;
+    const pin = (cls, icon) => `<div class="mk mk-${cls}"><svg viewBox="0 0 24 24"><use href="#i-${icon}"/></svg></div>`;
+    openSheet({
+      title: "Legende", plain: true, noFooter: true,
+      body: `
+        <h3>Symbole</h3>
+        <div class="legend-list">
+          ${sym(pin("catch", "fish"), "Fang", "Deine eingetragenen Fänge")}
+          ${sym(`<div class="mk-wrap">${pin("spot", "pin")}<span class="mk-idx" style="background:var(--good)">72</span></div>`, "Spot mit Beissindex", "Zahl = Beissindex heute: <span style='color:var(--good)'>grün ab 65</span>, <span style='color:var(--warn)'>gelb 45–64</span>, <span style='color:var(--bad)'>rot unter 45</span>. Antippen zeigt alle Details.")}
+          ${sym(`<span class="lg-circle" style="border-color:#3df5b0;background:rgba(61,245,176,.18)"></span>`, "Hotspot", "Aus deinen Fängen erkannt – grün: passt heute gut, gelb: mittel, blau: eher nicht")}
+          ${sym(pin("public", "target"), "Angelplatz (OpenStreetMap)", "Öffentlich eingetragene Fischerplätze, Slipanlagen und Häfen")}
+          ${sym(`<div class="me-dot"></div>`, "Dein Standort", "")}
+          ${sym(`<span class="lg-line" style="background:var(--accent)"></span>`, "Umriss des gewählten Gewässers", "")}
+        </div>
+        <h3 style="margin-top:20px">Wassertiefe lesen</h3>
+        <div class="legend-list">
+          ${sym(`<svg viewBox="0 0 40 24" width="40" height="24"><path d="M2 20c8-14 28-14 36 0M8 20c6-9 18-9 24 0M14 20c3-4 9-4 12 0" fill="none" stroke="#2f8fd1" stroke-width="1.4"/></svg>`, "Tiefenlinien (Landeskarte)", "Blaue Linien im See verbinden Stellen gleicher Tiefe. Liegen sie dicht beieinander, fällt der Grund steil ab (Halde – oft gute Raubfisch-Stelle). Weit auseinander = flaches Plateau.")}
+          ${sym(`<span style="color:#2f8fd1;font-weight:700;text-decoration:underline">414</span>`, "Unterstrichene blaue Zahl", "Höhe des Seespiegels in m ü. M.")}
+          ${sym(`<span class="lg-ramp lg-relief"></span>`, "Seegrund-Relief (Ebene «swissBATHY3D»)", "Schattierung des Seegrunds: macht Kanten, Rinnen und Unterwasserberge sichtbar. Hell und dunkel zeigen die Beleuchtung, nicht die Tiefe.")}
+          ${sym(`<span class="lg-ramp lg-aerial"></span>`, "Luftbild (SWISSIMAGE)", "Bei klarem Wasser: helles Türkis = flach (Sand, Kraut), dunkles Blau = tief. Gut, um Krautkanten und Scharkanten zu finden.")}
+        </div>
+        <p class="source">Hinweis: Für Schweizer Seen gibt es keine frei verfügbare farbige Tiefenkarte. Die Tiefe zeigt die Landeskarte über Tiefenlinien; das Seegrund-Relief und das Luftbild ergänzen sie. Ebenen wechselst du über das Ebenen-Symbol.</p>`,
+    });
+  });
   $("#btnFitWater").addEventListener("click", () => (activeWater() ? fitWater() : openWaterPicker()));
 
   let meMarker;
@@ -717,8 +742,15 @@
     el.querySelector('[data-a="s"]').onclick = () => { map.closePopup(pop); openSpotForm({ lat, lng, waterId: w?.id }); };
   });
 
+  const fcLoading = new Set();
   function renderMarkers() {
     catchLayer.clearLayers(); spotLayer.clearLayers(); hotspotLayer.clearLayers();
+    // Wetter für den Spot-Index einmal nachladen
+    const aw = activeWater();
+    if (aw && !state.live.fc[aw.id] && navigator.onLine && !fcLoading.has(aw.id)) {
+      fcLoading.add(aw.id);
+      forecast({ lat: aw.lat, lng: aw.lng }).then((fc) => { state.live.fc[aw.id] = fc; renderMarkers(); }).catch(() => {});
+    }
     const chip = $('#mapChips [data-layer="hotspots"]');
     if (chip) chip.hidden = !hotspotsOn();
     if (hotspotsOn() && mapLayers.hotspots) {
@@ -754,7 +786,11 @@
         <div class="row"><button class="btn btn-primary btn-sm" data-a="c">Fang hier</button><button class="btn btn-sm" data-a="e">Bearbeiten</button></div>`;
       el.querySelector('[data-a="c"]').onclick = () => openCatchForm({ lat: s.lat, lng: s.lng, spotId: s.id, waterId: s.waterId });
       el.querySelector('[data-a="e"]').onclick = () => openSpotForm(s);
-      L.marker([s.lat, s.lng], { icon: mkIcon("spot", "pin") }).bindPopup(el).addTo(spotLayer);
+      const sc = spotIndex(s).score;
+      const col = sc >= 65 ? "var(--good)" : sc >= 45 ? "var(--warn)" : "var(--bad)";
+      const icon = L.divIcon({ className: "", iconSize: [30, 30], iconAnchor: [15, 15],
+        html: `<div class="mk-wrap"><div class="mk mk-spot"><svg viewBox="0 0 24 24"><use href="#i-pin"/></svg></div><span class="mk-idx" style="background:${col}">${sc}</span></div>` });
+      L.marker([s.lat, s.lng], { icon, title: `${s.name} · Beissindex ${sc}` }).on("click", () => openSpotDetail(s)).addTo(spotLayer);
     });
   }
 
@@ -1091,27 +1127,32 @@
     store.set("fixLakeTemp1", true);
   }
 
-  function resizeImage(file, max, quality) {
-    return new Promise((res, rej) => {
+  // Foto verkleinern – Seitenverhältnis und Ausrichtung (EXIF) bleiben erhalten
+  async function resizeImage(file, max, quality) {
+    let src = null, w = 0, h = 0, cleanup = () => {};
+    if (window.createImageBitmap) {
+      try { src = await createImageBitmap(file, { imageOrientation: "from-image" }); w = src.width; h = src.height; cleanup = () => src.close?.(); } catch { src = null; }
+    }
+    if (!src) {
       const img = new Image();
-      img.onload = () => {
-        const s = Math.min(1, max / Math.max(img.width, img.height));
-        const cv = document.createElement("canvas");
-        cv.width = Math.round(img.width * s); cv.height = Math.round(img.height * s);
-        cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
-        URL.revokeObjectURL(img.src);
-        res(cv.toDataURL("image/jpeg", quality));
-      };
-      img.onerror = rej;
-      img.src = URL.createObjectURL(file);
-    });
+      const url = URL.createObjectURL(file);
+      await new Promise((res, rej) => { img.onload = res; img.onerror = rej; img.src = url; });
+      src = img; w = img.naturalWidth; h = img.naturalHeight; cleanup = () => URL.revokeObjectURL(url);
+    }
+    const k = Math.min(1, max / Math.max(w, h));
+    const cv = document.createElement("canvas");
+    cv.width = Math.max(1, Math.round(w * k)); cv.height = Math.max(1, Math.round(h * k));
+    cv.getContext("2d").drawImage(src, 0, 0, cv.width, cv.height);
+    cleanup();
+    return cv.toDataURL("image/jpeg", quality);
   }
+
 
   // ───────────────────────── Hotspots & Empfehlungen (Beta) ─────────────────────────
   // Abschaltbar in den Einstellungen. Fasst Fänge im Umkreis von ~150 m zusammen und
   // vergleicht die heutigen Bedingungen mit denen deiner bisherigen Fänge.
   const hotspotsOn = () => store.get("hotspots", true);
-  state.live = { temp: {}, dp: {}, wx: {} };
+  state.live = { temp: {}, dp: {}, wx: {}, fc: {} };
   // Wetterlage grob einteilen (WMO-Code)
   const wxType = (c) => (c == null ? null : c >= 95 ? "Gewitter" : (c >= 71 && c <= 77) || c === 85 || c === 86 ? "Schnee" : (c >= 51 && c <= 67) || (c >= 80 && c <= 82) ? "Regen" : "trocken");
   const cloudName = (v) => (v == null ? "" : v >= 75 ? "bedeckt" : v >= 35 ? "teils bewölkt" : "sonnig");
@@ -1283,7 +1324,7 @@
     const c = e.target.closest("[data-catch]");
     if (c) return openCatchForm(state.catches.find((x) => x.id === c.dataset.catch));
     const s = e.target.closest("[data-spot]");
-    if (s) return openSpotForm(state.spots.find((x) => x.id === s.dataset.spot));
+    if (s) return openSpotDetail(state.spots.find((x) => x.id === s.dataset.spot));
     const a = e.target.closest("[data-action]");
     if (!a) return;
     const act = a.dataset.action;
@@ -1332,6 +1373,56 @@
       <div class="card"><h3>Nach Fangtiefe</h3>${barsList(["0–5 m", "5–10 m", "10–20 m", "20–40 m", "> 40 m"].filter((k) => depths.has(k)).map((k) => [k, depths.get(k)]))}</div>
       <div class="card"><h3>Nach Monat</h3>${barsList(perMonth.map((n, i) => [MONTHS[i], n]).filter((e) => e[1]))}</div>
       <div class="card"><h3>Nach Mondphase</h3>${barsList([...phases.entries()].sort((a, b) => b[1] - a[1]))}</div>`;
+  }
+
+  // ───────────────────────── Spot-Details ─────────────────────────
+  function spotIndex(sp) {
+    const w = waterById(sp.waterId) || activeWater();
+    const sol = solunar(new Date(), sp.lat, sp.lng);
+    return waterIndex(w, sol, w ? state.live.fc[w.id] || null : null);
+  }
+  function openSpotDetail(sp) {
+    if (!sp) return;
+    const w = waterById(sp.waterId);
+    const cs = state.catches.filter((c) => c.spotId === sp.id).sort((a, b) => new Date(b.date) - new Date(a.date));
+    const bi = spotIndex(sp);
+    const topSp = topBy(cs, "species"), bait = topBy(cs, "bait")[0], tech = topBy(cs, "technique")[0];
+    const big = cs.reduce((m, c) => (c.length > (m?.length || 0) ? c : m), null);
+    const fact = (k, v) => (v ? `<div><div class="k">${k}</div><div class="v">${v}</div></div>` : "");
+    openSheet({
+      title: sp.name, plain: true, noFooter: true,
+      body: `
+        <div class="score-row" style="margin-bottom:12px">${ringHtml(bi)}
+          <div class="score-meta"><div class="t">Heute ${scoreLabel(bi.score).toLowerCase()}</div>
+            <div class="s" id="spotScoreB">${indexBreakdown(bi)}</div>
+            ${bi.parts?.best?.length ? `<div class="s">aktiv: ${esc(bi.parts.best.join(", "))}</div>` : ""}</div></div>
+        <div class="facts spot-facts">
+          ${fact("Gewässer", esc(w?.name || "–"))}
+          ${fact("Wassertiefe", sp.depth != null ? `${nf(sp.depth)} <small>m</small>` : "–")}
+          ${fact("Bewertung", sp.rating ? `<span class="stars-txt">${"★".repeat(sp.rating)}</span>` : "–")}
+        </div>
+        ${sp.species ? `<p class="small" style="margin-top:12px"><b>Zielfische:</b> ${esc(sp.species)}</p>` : ""}
+        ${sp.notes ? `<p class="small muted" style="margin-top:8px;white-space:pre-line">${esc(sp.notes)}</p>` : ""}
+        <p class="coord" style="margin-top:8px">${(+sp.lat).toFixed(5)}, ${(+sp.lng).toFixed(5)}</p>
+        <div class="row wrap" style="margin:14px 0 4px">
+          <button type="button" class="btn btn-primary btn-sm" id="sdCatch">${ic("plus", "xs")}Fang hier</button>
+          <button type="button" class="btn btn-sm" id="sdMap">${ic("map", "xs")}Auf Karte</button>
+          <button type="button" class="btn btn-sm" id="sdEdit">Bearbeiten</button>
+        </div>
+        <h3 style="margin-top:18px">Fänge an diesem Spot · ${cs.length}</h3>
+        ${cs.length ? `<div class="row wrap" style="margin-bottom:10px">
+            ${topSp[0] ? `<span class="tag accent">Häufigste Art: ${esc(topSp[0][0])}</span>` : ""}
+            ${big?.length ? `<span class="tag">Grösster: ${esc(big.species)} ${nf(big.length)} cm</span>` : ""}
+            ${bait ? `<span class="tag">Köder: ${esc(bait[0])}</span>` : ""}${tech ? `<span class="tag">Technik: ${esc(tech[0])}</span>` : ""}</div>
+          <div class="catch-grid">${cs.map((c) => `<button type="button" class="catch-card" data-catch="${c.id}">
+            ${c.photo ? `<img src="${c.photo}" alt="" loading="lazy">` : `<span class="cc-ph">${ic("fish", "lg")}</span>`}
+            <span class="cc-body"><span class="cc-t">${esc(c.species)}${c.length ? ` · ${nf(c.length)} cm` : ""}</span>
+            <span class="cc-s">${esc(fmtDate(c.date))}${c.bait ? ` · ${esc(c.bait)}` : ""}</span></span></button>`).join("")}</div>`
+          : `<p class="small muted">Noch keine Fänge an diesem Spot. Tippe auf «Fang hier».</p>`}`,
+    });
+    $("#sdCatch").onclick = () => openCatchForm({ lat: sp.lat, lng: sp.lng, spotId: sp.id, waterId: sp.waterId });
+    $("#sdMap").onclick = () => { sheet.close(); showView("map"); setTimeout(() => map.flyTo([sp.lat, sp.lng], 16), 80); };
+    $("#sdEdit").onclick = () => openSpotForm(sp);
   }
 
   // ───────────────────────── Spots ─────────────────────────
@@ -1529,6 +1620,7 @@
     };
     if (navigator.onLine) forecast({ lat: w.lat, lng: w.lng }).then((fc) => {
       state.live.wx[w.id] = fc.current;
+      state.live.fc[w.id] = fc;
       const tr = pressureTrend(fc);
       if (tr) state.live.dp[w.id] = tr.past;
       if (activeWater() === w) { renderHotspotCard(w); updateIndex(fc); }
@@ -1703,6 +1795,7 @@
     forecast(place).then((fc) => {
       if (currentView !== "forecast") return;
       renderDays(fc);
+      if (w && state.place === "water") state.live.fc[w.id] = fc;
       const bi2 = waterIndex(w, sol, fc);
       $("#fcScore .score-ring").outerHTML = ringHtml(bi2);
       $("#fcScoreT").textContent = scoreLabel(bi2.score);
@@ -1903,9 +1996,190 @@
   const fishThumb = (name) => { const p = photoOf(name); return p ? `<img class="fish-thumb" src="${p.file}" alt="${esc(name)}" loading="lazy">` : `<span class="badge-ic">${ic("fish")}</span>`; };
   const fishPhoto = (name) => { const p = photoOf(name); return p ? `<figure class="fish-photo"><img src="${p.file}" alt="${esc(name)}" loading="lazy"><figcaption>Foto: ${esc(p.credit)} · <a href="${p.source}" target="_blank" rel="noopener">${esc(p.license)}</a> · iNaturalist</figcaption></figure>` : ""; };
 
+  // ───────────────────────── KI-Berater ─────────────────────────
+  // Ohne Schlüssel: eingebauter Offline-Berater (Wissen + aktuelle Bedingungen der App).
+  // Mit eigenem Claude-API-Schlüssel (nur auf diesem Gerät gespeichert): freie Antworten von Claude.
+  state.chat = [];
+  const AI_MODEL = "claude-opus-5-5";
+  const SDK_URL = "https://esm.sh/@anthropic-ai/sdk@1.0.0";
+
+  function mdLite(t) {
+    const lines = esc(t).split("\n");
+    let out = "", list = false;
+    for (const l of lines) {
+      const li = l.match(/^\s*[-*•]\s+(.*)/);
+      if (li) { if (!list) { out += "<ul>"; list = true; } out += `<li>${li[1]}</li>`; continue; }
+      if (list) { out += "</ul>"; list = false; }
+      out += l.trim() ? `<p>${l}</p>` : "";
+    }
+    if (list) out += "</ul>";
+    return out.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|[^*])\*(?!\s)(.+?)\*/g, "$1<i>$2</i>").replace(/^#+\s*/gm, "");
+  }
+
+  function conditionsNow(w) {
+    if (!w) return null;
+    const fc = state.live.fc[w.id] || null;
+    const sol = solunar(new Date(), w.lat, w.lng), bi = waterIndex(w, sol, fc);
+    const best = bestWindow(sol, fc);
+    const ld = lakeData(w), th = ld ? thermocline(ld.profile) : null;
+    const wx = state.live.wx[w.id];
+    let hs = null;
+    if (hotspotsOn()) { const r = rankHotspots(findHotspots(state.catches.filter((c) => c.waterId === w.id)), nowConditions(w), null); hs = r[0] || null; }
+    return { sol, bi, best, th, temp: bi.parts?.temp ?? null, wx, hs };
+  }
+
+  function localAdvisor(question) {
+    const q = norm(question), w = activeWater(), m = new Date().getMonth();
+    const out = [];
+    const fish = window.FISH_GUIDE.filter((f) => [f.name, ...f.alias].some((n) => q.includes(norm(n).split(" ")[0]) && norm(n).length > 2));
+    const tech = window.TECHNIQUES.filter((t) => q.includes(norm(t.name).split(" ")[0]));
+    const today = /heute|jetzt|morgen|wann|beste zeit|wo soll|lohnt|aussicht|bedingung/.test(q);
+    const rules = /schonzeit|schonmass|patent|regel|erlaubt|sana|verbot/.test(q);
+    const depth = /tief|sprungschicht|stehen/.test(q);
+    if (today || (!fish.length && !tech.length && !rules)) {
+      const c = conditionsNow(w);
+      if (c) {
+        out.push(`**Heute am ${w.name}:** Beissindex ${c.bi.score} (${scoreLabel(c.bi.score).toLowerCase()}).`);
+        if (c.bi.parts?.best?.length) out.push(`- Gerade aktiv: ${c.bi.parts.best.join(", ")}`);
+        if (c.temp != null) out.push(`- Wassertemperatur ca. ${nf(c.temp)} °C${c.th?.stratified ? `, Sprungschicht bei ca. ${nf(c.th.depth, 0)} m` : ""}`);
+        if (c.best && !c.best.none) out.push(`- Beste Zeit: ${hm(c.best.from)}–${hm(c.best.to)}${c.best.note ? ` (${c.best.note})` : ""}`);
+        if (c.wx) out.push(`- Wetter: ${WMO(c.wx.weather_code)[1]}, ${nf(c.wx.temperature_2m, 0)} °C, Wind ${nf(c.wx.wind_speed_10m, 0)} km/h aus ${dirName(c.wx.wind_direction_10m)}`);
+        if (c.hs && c.hs.score >= 40) out.push(`- Dein Hotspot mit ${c.hs.n} Fängen passt heute (${c.hs.score}/100)${c.hs.tip.technique ? ` – Tipp: ${[c.hs.tip.technique, c.hs.tip.bait].filter(Boolean).join(" mit ")}` : ""}`);
+      } else out.push("Wähle oben ein Gewässer, dann kann ich dir die heutigen Bedingungen dort zusammenfassen.");
+    }
+    for (const f of fish.slice(0, 2)) {
+      const lvl = ["kaum", "mässig", "gut", "sehr gut"][f.months[m]];
+      out.push(`\n**${f.name}** (${f.type}) – im ${MONTHS[m]} ${lvl}${f.spawn.includes(m) ? ", **Laichzeit – meist Schonzeit!**" : ""}`);
+      out.push(`- Tageszeit: ${f.daytime}`);
+      out.push(`- Wo suchen: ${f.spots}`);
+      out.push(`- Köder: ${f.baits}`);
+      out.push(`- Techniken: ${f.techniques.join(", ")}`);
+      out.push(`- Temperatur: ${f.temp}`);
+      if (depth && w) { const c = conditionsNow(w); if (c?.th?.stratified) out.push(`- Bei der aktuellen Sprungschicht (~${nf(c.th.depth, 0)} m) lohnt sich die Suche im Bereich ${Math.max(2, Math.round(c.th.depth - 4))}–${Math.round(c.th.depth + 3)} m.`); }
+      out.push(`- Tipp: ${f.tips}`);
+    }
+    for (const t of tech.slice(0, 2)) out.push(`\n**${t.name}:** ${t.desc}\n- Ausrüstung: ${t.gear}\n- So geht's: ${t.how}`);
+    if (rules) out.push(`\n**Regeln:** ${window.RULES_CH.slice(0, 3).join(" ")}${w?.cantons ? ` Zuständig für ${w.name}: Kanton ${w.cantons}.` : ""}`);
+    if (!out.length) out.push("Dazu habe ich im Offline-Modus keine Antwort. Frag mich nach einer Fischart, einer Technik, den Regeln oder den heutigen Bedingungen.");
+    out.push(`\n_Offline-Berater ohne KI. Mit einem eigenen Claude-Schlüssel (unten) beantworte ich jede Frage frei._`.replace(/_/g, ""));
+    return out.join("\n");
+  }
+
+  function advisorSystem() {
+    const w = activeWater(), c = conditionsNow(w);
+    const cs = w ? state.catches.filter((x) => x.waterId === w.id) : state.catches;
+    const ctx = {
+      datum: new Date().toLocaleString("de-CH", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }),
+      gewaesser: w ? { name: w.name, typ: KIND[w.kind] || "Gewässer", kantone: w.cantons || null, fischarten: speciesOfWater(w), ...(catalogOf(w) ? { flaeche_km2: catalogOf(w).area, max_tiefe_m: catalogOf(w).depth, hoehe_m: catalogOf(w).alt } : {}) } : null,
+      heute: c ? {
+        beissindex: c.bi.score, mond_sonne: c.bi.parts?.sol, fischarten_aktiv: c.bi.parts?.fish, wetter_wert: c.bi.parts?.wx, aktive_arten: c.bi.parts?.best,
+        wassertemperatur_c: c.temp, sprungschicht_m: c.th?.stratified ? c.th.depth : null, mondphase: phaseName(c.sol.ill.phase),
+        sonnenaufgang: hm(c.sol.sun.sunrise), sonnenuntergang: hm(c.sol.sun.sunset),
+        beste_zeit: c.best && !c.best.none ? `${hm(c.best.from)}-${hm(c.best.to)}` : null,
+        hauptbeisszeiten: c.sol.periods.filter((p) => p.kind === "major").map((p) => `${hm(p.from)}-${hm(p.to)}`),
+        wetter: c.wx ? { lage: WMO(c.wx.weather_code)[1], luft_c: c.wx.temperature_2m, wind_kmh: c.wx.wind_speed_10m, wind_aus: dirName(c.wx.wind_direction_10m), boeen_kmh: c.wx.wind_gusts_10m, bewoelkung: c.wx.cloud_cover } : null,
+      } : null,
+      meine_faenge: { anzahl: cs.length, arten: topBy(cs, "species").slice(0, 5), koeder: topBy(cs, "bait").slice(0, 5), techniken: topBy(cs, "technique").slice(0, 5) },
+      bester_hotspot: c?.hs ? { faenge: c.hs.n, arten: c.hs.species, score_heute: c.hs.score, gruende: c.hs.reasons, tipp: c.hs.tip } : null,
+    };
+    return `Du bist der Angel-Berater in der App «Fischerglück» für Schweizer Gewässer. Antworte auf Deutsch (Schweizer Schreibweise mit «ss» statt «ß»), freundlich, konkret und praxisnah, meist in wenigen kurzen Absätzen oder Stichpunkten. Nutze die folgenden aktuellen Daten aus der App, wenn sie zur Frage passen, und sag ehrlich, wenn dir eine Information fehlt. Schonzeiten, Schonmasse und Patente sind kantonal geregelt: nenne keine erfundenen Daten, sondern verweise auf das Patent-Merkblatt bzw. die kantonale Fischereiverwaltung. Weise bei Gewitter oder Sturm auf die Sicherheit hin.
+
+Aktuelle Daten (JSON):
+${JSON.stringify(ctx)}`;
+  }
+
+  async function askClaude(onText) {
+    const { default: Anthropic } = await import(SDK_URL);
+    const client = new Anthropic({ apiKey: store.get("aiKey", ""), dangerouslyAllowBrowser: true });
+    const hist = state.chat.filter((x) => !x.local && x.text).slice(-16).map((x) => ({ role: x.role, content: x.text }));
+    while (hist.length && hist[0].role !== "user") hist.shift();
+    try {
+      const stream = client.beta.messages.stream({
+        model: AI_MODEL,
+        max_tokens: 64000,
+        output_config: { effort: "low" },
+        betas: ["server-side-fallback-2026-07-01"],
+        fallbacks: "default",
+        system: advisorSystem(),
+        messages: hist,
+      });
+      stream.on("text", onText);
+      const msg = await stream.finalMessage();
+      if (msg.stop_reason === "refusal") return { text: "Dazu kann ich leider keine Antwort geben. Frag mich gern etwas anderes zum Fischen." };
+      return { text: msg.content.filter((b) => b.type === "text").map((b) => b.text).join("") };
+    } catch (e) {
+      if (e instanceof Anthropic.AuthenticationError) return { error: "Der Claude-Schlüssel ist ungültig. Bitte unten prüfen." };
+      if (e instanceof Anthropic.PermissionDeniedError) return { error: "Der Schlüssel hat keine Berechtigung für dieses Modell." };
+      if (e instanceof Anthropic.RateLimitError) return { error: "Zu viele Anfragen – bitte kurz warten und nochmals versuchen." };
+      if (e instanceof Anthropic.APIConnectionError) return { error: "Keine Verbindung zu Claude. Bist du online?" };
+      if (e instanceof Anthropic.APIError) return { error: `Claude hat einen Fehler gemeldet (${e.status ?? "?"}). ${e.message || ""}`.trim() };
+      return { error: "Unerwarteter Fehler: " + (e?.message || e) };
+    }
+  }
+
+  function chatHtml() {
+    if (!state.chat.length) return `<div class="chat-empty">${ic("fish", "lg")}<p>Frag mich etwas zum Angeln – zu Fischarten, Ködern, Techniken, Regeln oder den heutigen Bedingungen an deinem Gewässer.</p></div>`;
+    return state.chat.map((x) => `<div class="chat-msg ${x.role}${x.error ? " err" : ""}">${x.role === "user" ? esc(x.text) : x.text ? mdLite(x.text) : `<span class="typing"><i></i><i></i><i></i></span>`}</div>`).join("");
+  }
+
+  function renderAdvisor() {
+    const key = store.get("aiKey", ""), w = activeWater();
+    const sugg = [w ? `Was soll ich heute am ${w.name} fischen?` : "Wie stehen die Chancen heute?", `Welcher Köder für Hecht im ${MONTHS[new Date().getMonth()]}?`, "Wie funktioniert die Hegene?", "Wo stehen Egli bei dieser Wassertemperatur?"];
+    $("#guide").innerHTML = `
+      <div class="card advisor">
+        <div class="card-head"><h3>KI-Berater</h3><span class="pill ${key ? "pill-good" : "pill-neutral"}">${key ? "Claude" : "Offline"}</span></div>
+        <div class="chat-log" id="chatLog">${chatHtml()}</div>
+        <div class="chips" id="chatSugg" style="margin:10px 0">${sugg.map((t) => `<button type="button" class="chip" data-q="${esc(t)}">${esc(t)}</button>`).join("")}</div>
+        <form class="chat-input" id="chatForm"><input id="chatInput" placeholder="Frag mich etwas zum Angeln …" autocomplete="off">
+          <button class="btn btn-primary" type="submit" aria-label="Senden">${ic("chev-r", "sm")}</button></form>
+        ${state.chat.length ? `<button type="button" class="link-btn" id="chatClear" style="margin-top:10px">Gespräch löschen</button>` : ""}
+      </div>
+      <details class="acc" ${key ? "" : "open"}><summary><span class="badge-ic">${ic("sliders")}</span><span><span class="t">Claude-Schlüssel</span><br><span class="s">${key ? "Gespeichert – freie KI-Antworten aktiv" : "Optional – für freie Antworten von Claude"}</span></span>${ic("chev", "sm")}</summary>
+        <div class="acc-body">
+          <p class="small muted">Ohne Schlüssel antwortet der eingebaute Offline-Berater aus dem App-Wissen und den heutigen Bedingungen – kostenlos. Mit einem eigenen API-Schlüssel von Anthropic (console.anthropic.com) beantwortet Claude jede Frage frei. Die Nutzung wird über dein Anthropic-Konto abgerechnet (pro Frage meist nur Bruchteile eines Rappens bis wenige Rappen).</p>
+          <p class="small muted" style="margin-top:6px">Der Schlüssel bleibt nur auf diesem Gerät. Deine Frage und die aktuellen Gewässer- und Fangdaten werden dafür an Anthropic gesendet.</p>
+          <div class="row" style="margin-top:10px"><input id="aiKey" type="password" placeholder="sk-ant-…" autocomplete="off" value="${key ? "••••••••••••" : ""}">
+            <button type="button" class="btn btn-primary btn-sm" id="aiKeySave">Speichern</button></div>
+          ${key ? `<button type="button" class="link-btn" id="aiKeyDel" style="margin-top:10px">Schlüssel entfernen</button>` : ""}
+        </div></details>`;
+    const log = $("#chatLog");
+    log.scrollTop = log.scrollHeight;
+    const send = async (text) => {
+      text = text.trim();
+      if (!text) return;
+      state.chat.push({ role: "user", text });
+      const ans = { role: "assistant", text: "" };
+      state.chat.push(ans);
+      renderAdvisor();
+      if (!store.get("aiKey", "")) {
+        ans.text = localAdvisor(text); ans.local = true;
+        renderAdvisor(); return;
+      }
+      if (!navigator.onLine) { ans.text = localAdvisor(text); ans.local = true; renderAdvisor(); return; }
+      let raf = 0;
+      const r = await askClaude((d) => {
+        ans.text += d;
+        if (!raf) raf = requestAnimationFrame(() => { raf = 0; const last = $("#chatLog .chat-msg.assistant:last-child"); if (last) { last.innerHTML = mdLite(ans.text); $("#chatLog").scrollTop = 1e9; } });
+      });
+      if (r.error) { ans.text = r.error; ans.error = true; ans.local = true; } else ans.text = r.text || ans.text;
+      if (currentView === "guide" && state.guideSeg === "ai") renderAdvisor();
+    };
+    $("#chatForm").onsubmit = (e) => { e.preventDefault(); const v = $("#chatInput").value; $("#chatInput").value = ""; send(v); };
+    $("#chatSugg").onclick = (e) => { const b = e.target.closest("[data-q]"); if (b) send(b.dataset.q); };
+    if ($("#chatClear")) $("#chatClear").onclick = () => { state.chat = []; renderAdvisor(); };
+    $("#aiKeySave").onclick = () => {
+      const v = $("#aiKey").value.trim();
+      if (!v || v.startsWith("•")) return toast("Bitte einen Schlüssel eingeben");
+      if (!v.startsWith("sk-ant-")) return toast("Das sieht nicht nach einem Anthropic-Schlüssel aus (beginnt mit sk-ant-)");
+      store.set("aiKey", v); toast("Schlüssel gespeichert – Claude ist aktiv"); renderAdvisor();
+    };
+    if ($("#aiKeyDel")) $("#aiKeyDel").onclick = () => { store.set("aiKey", ""); toast("Schlüssel entfernt"); renderAdvisor(); };
+  }
+
   function renderGuide() {
     $$("#guideSeg button").forEach((b) => b.classList.toggle("on", b.dataset.seg === state.guideSeg));
-    $("#guideSearchWrap").hidden = state.guideSeg === "rules";
+    $("#guideSearchWrap").hidden = state.guideSeg === "rules" || state.guideSeg === "ai";
+    if (state.guideSeg === "ai") return renderAdvisor();
     const q = norm($("#guideSearch").value);
     const w = activeWater();
     const month = new Date().getMonth();

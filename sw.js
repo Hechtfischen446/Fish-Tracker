@@ -1,11 +1,11 @@
 /* Service Worker: App offline nutzbar machen, angesehene Kartenkacheln speichern. */
-const VERSION = "v19";
+const VERSION = "v20";
 const APP_CACHE = `ft-app-${VERSION}`;
 const TILE_CACHE = "ft-tiles";
 const MAX_TILES = 4000;
 
 const APP_FILES = [
-  "./", "index.html", "styles.css?v=19", "app.js?v=19", "data.js?v=19", "manifest.webmanifest",
+  "./", "index.html", "styles.css?v=20", "app.js?v=20", "data.js?v=20", "manifest.webmanifest",
   "icons/favicon-32.png", "icons/apple-touch-icon.png", "icons/icon-192.png", "icons/icon-512.png",
   "data/stations.json", "data/lakes.json",
   "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css",
@@ -26,7 +26,7 @@ self.addEventListener("activate", (e) => {
 });
 
 const isTile = (u) => /wmts\.geo\.admin\.ch|tile\.openstreetmap\.org|tiles\.openseamap\.org/.test(u.hostname);
-const isLive = (u) => /open-meteo\.com|existenz\.ch|data\.geo\.admin\.ch|nominatim\.openstreetmap\.org|overpass-api\.de/.test(u.hostname);
+const isLive = (u) => /open-meteo\.com|existenz\.ch|data\.geo\.admin\.ch|nominatim\.openstreetmap\.org|overpass-api\.de|anthropic\.com|esm\.sh/.test(u.hostname);
 
 async function trimTiles() {
   const c = await caches.open(TILE_CACHE);

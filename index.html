@@ -18,7 +18,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&display=swap">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-  <link rel="stylesheet" href="styles.css?v=19">
+  <link rel="stylesheet" href="styles.css?v=20">
 </head>
 <body>
   <!-- Icon-Sprite -->
@@ -88,6 +88,7 @@
           <button class="fab-sm" id="btnLayers" aria-label="Kartenebenen"><svg class="ic"><use href="#i-layers"/></svg></button>
           <button class="fab-sm" id="btnLocate" aria-label="Mein Standort"><svg class="ic"><use href="#i-locate"/></svg></button>
           <button class="fab-sm" id="btnFitWater" aria-label="Gewässer zeigen"><svg class="ic"><use href="#i-water"/></svg></button>
+          <button class="fab-sm" id="btnLegend" aria-label="Legende"><svg class="ic"><use href="#i-info"/></svg></button>
         </div>
         <button class="fab" data-action="new-catch"><svg class="ic"><use href="#i-plus"/></svg>Fang</button>
       </section>
@@ -117,6 +118,7 @@
           <button class="on" data-seg="fish">Fischarten</button>
           <button data-seg="tech">Techniken</button>
           <button data-seg="rules">Regeln</button>
+          <button data-seg="ai">Berater</button>
         </div>
         <label class="search" id="guideSearchWrap"><svg class="ic sm"><use href="#i-search"/></svg><input id="guideSearch" type="search" placeholder="Suchen"></label>
         <div id="guide"></div>
@@ -153,7 +155,7 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://unpkg.com/suncalc@1.9.0/suncalc.js"></script>
-  <script src="data.js?v=19"></script>
-  <script src="app.js?v=19"></script>
+  <script src="data.js?v=20"></script>
+  <script src="app.js?v=20"></script>
 </body>
 </html>
