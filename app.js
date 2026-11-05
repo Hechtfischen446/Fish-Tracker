@@ -632,7 +632,7 @@
     if (name === "catches") renderCatches();
     if (name === "forecast") renderForecast();
     if (name === "guide") renderGuide();
-    if (name === "ai") renderAdvisor();
+    if (name === "ai" && $("#advisor")) renderAdvisor();
   }
   function renderAll() { renderMarkers(); renderView(currentView); }
 
@@ -2583,7 +2583,9 @@ ${JSON.stringify(ctx)}`;
     if (state.activeId && !waterById(state.activeId)) state.activeId = null;
     await fixOldLakeTemps();
     await setActive(state.activeId);
-    showView(store.get("view", "home"));
+    // KI-Berater ist vorübergehend ausgeblendet (Code bleibt für später erhalten)
+    const startView = store.get("view", "home");
+    showView($("#view-" + startView) ? startView : "home");
     const w = activeWater();
     if (w) { ensureOutline(w); if (!store.get("mapCenter", null)) fitWater(); }
     locate(false).then(() => { if (!activeWater() && currentView === "home") renderHome(); });
