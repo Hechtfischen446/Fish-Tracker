@@ -1459,37 +1459,63 @@
 
   // ───────────────────────── Spot-Details ─────────────────────────
   // Index je Spot: Gewässer-Index, angepasst an die eigene Fangbilanz des Spots und seine Tiefe
-  function spotIndex(sp) {
-    const w = waterById(sp.waterId) || activeWater();
-    const sol = solunar(new Date(), sp.lat, sp.lng);
-    const base = waterIndex(w, sol, w ? state.live.fc[w.id] || null : null);
+  // date: Zeitpunkt der Prognose; noTod: Tageszeit nicht berücksichtigen (Tageswerte)
+  function spotAdjust(sp, w, date = new Date(), best = [], noTod = false) {
     const why = [];
     let adj = 0;
     const cs = state.catches.filter((c) => c.spotId === sp.id);
     if (cs.length) {
-      const m = new Date().getMonth(), h = new Date().getHours();
-      const near = (a, b2, n) => Math.min(Math.abs(a - b2), n - Math.abs(a - b2));
+      const m = date.getMonth(), h = date.getHours();
+      const near = (x, y, n) => Math.min(Math.abs(x - y), n - Math.abs(x - y));
       const season = cs.filter((c) => near(new Date(c.date).getMonth(), m, 12) <= 1).length / cs.length;
       const tod = cs.filter((c) => near(new Date(c.date).getHours(), h, 24) <= 2).length / cs.length;
-      const act = (base.parts?.best || []).map(norm);
+      const act = (best || []).map(norm);
       const actShare = act.length ? cs.filter((c) => act.includes(norm(canonFish(c.species)))).length / cs.length : 0;
-      const s1 = Math.round(season * 9), s2 = Math.round(tod * 5), s3 = Math.round(actShare * 6), s4 = Math.min(cs.length, 5);
+      const s1 = Math.round(season * 9), s2 = noTod ? 2 : Math.round(tod * 5), s3 = Math.round(actShare * 6), s4 = Math.min(cs.length, 5);
       adj += s1 + s2 + s3 + s4 - 7;
       if (s1 >= 5) why.push("Fänge in dieser Jahreszeit");
-      if (s2 >= 3) why.push("Fänge um diese Tageszeit");
+      if (!noTod && s2 >= 3) why.push("Fänge um diese Tageszeit");
       if (s3 >= 3) why.push("gefangene Arten sind jetzt aktiv");
       if (!s1 && cs.length >= 2) why.push("hier bisher zu anderen Jahreszeiten gefangen");
     }
     const ld = w ? lakeData(w) : null, th = ld ? thermocline(ld.profile) : null;
-    if (sp.depth && th?.stratified) {
-      const dd = sp.depth - th.depth;
-      if (dd > 8) { adj -= 6; why.push(`${nf(sp.depth, 0)} m liegt deutlich unter der Sprungschicht (${nf(th.depth, 0)} m)`); }
+    // Tiefe: eigene Angabe, sonst aus der farbigen Tiefenkarte
+    const auto = sp.depth ? null : autoDepth(sp);
+    const depth = sp.depth || auto?.mid;
+    if (depth && th?.stratified) {
+      const dd = depth - th.depth, lbl = auto ? `Tiefe laut Karte ${auto.label}` : `Tiefe ${nf(depth, 0)} m`;
+      if (dd > 8) { adj -= 6; why.push(`${lbl} – deutlich unter der Sprungschicht (${nf(th.depth, 0)} m)`); }
       else if (dd > 0) adj -= 2;
-      else if (dd > -6) { adj += 4; why.push(`Tiefe ${nf(sp.depth, 0)} m knapp über der Sprungschicht`); }
+      else if (dd > -6) { adj += 4; why.push(`${lbl} – knapp über der Sprungschicht`); }
     }
-    const score = Math.max(0, Math.min(100, Math.round(base.score + adj)));
-    return { ...base, score, spotAdj: adj, spotWhy: why };
+    return { adj, why };
   }
+  // Tiefe aus der Tiefenkarte für Spots ohne eigene Angabe (wird im Hintergrund ermittelt)
+  const autoDepths = {};
+  let autoDepthTimer = 0;
+  function autoDepth(sp) {
+    if (sp.lat == null) return null;
+    const k = `${sp.id}:${sp.lat}:${sp.lng}`;
+    if (!(k in autoDepths)) {
+      autoDepths[k] = null;
+      depthAt(sp.lat, sp.lng).then((b) => {
+        if (!b) return;
+        autoDepths[k] = { mid: b[1] == null ? b[0] + 25 : (b[0] + b[1]) / 2, label: bandLabel(b) };
+        clearTimeout(autoDepthTimer);
+        autoDepthTimer = setTimeout(() => { renderMarkers(); if (currentView === "home" || currentView === "forecast") renderView(currentView); }, 150);
+      }).catch(() => {});
+    }
+    return autoDepths[k];
+  }
+  const clampIdx = (v) => Math.max(0, Math.min(100, Math.round(v)));
+  const withSpot = (bi, a) => ({ ...bi, score: clampIdx(bi.score + a.adj), spotAdj: a.adj, spotWhy: a.why });
+  function spotIndex(sp) {
+    const w = waterById(sp.waterId) || activeWater();
+    const sol = solunar(new Date(), sp.lat, sp.lng);
+    const base = waterIndex(w, sol, w ? state.live.fc[w.id] || null : null);
+    return withSpot(base, spotAdjust(sp, w, new Date(), base.parts?.best));
+  }
+  const spotNote = (bi) => (bi.spotAdj ? `Spot ${bi.spotAdj > 0 ? "+" : "−"}${Math.abs(Math.round(bi.spotAdj))} gegenüber Gewässer${bi.spotWhy?.length ? `: ${esc(bi.spotWhy.join(", "))}` : ""}` : "");
   function openSpotDetail(sp) {
     if (!sp) return;
     const w = waterById(sp.waterId);
@@ -1505,7 +1531,7 @@
           <div class="score-meta"><div class="t">Heute ${scoreLabel(bi.score).toLowerCase()}</div>
             <div class="s" id="spotScoreB">${indexBreakdown(bi)}</div>
             ${bi.parts?.best?.length ? `<div class="s">aktiv: ${esc(bi.parts.best.join(", "))}</div>` : ""}
-            ${bi.spotAdj ? `<div class="s">Spot ${bi.spotAdj > 0 ? "+" : "−"}${Math.abs(Math.round(bi.spotAdj))} gegenüber Gewässer${bi.spotWhy.length ? `: ${esc(bi.spotWhy.join(", "))}` : ""}</div>` : ""}
+            ${bi.spotAdj ? `<div class="s">${spotNote(bi)}</div>` : ""}
             <div class="s" id="spotDepthAt"></div></div></div>
         <div class="facts spot-facts">
           ${fact("Gewässer", esc(w?.name || "–"))}
@@ -1808,8 +1834,13 @@
     const place = forecastPlace();
     const d = state.day;
     const sol = solunar(d, place.lat, place.lng);
-    const bi = waterIndex(w, sol, null);
     const spots = w ? state.spots.filter((s) => s.waterId === w.id) : [];
+    // Prognose für einen Spot: Index an die Fangbilanz und Tiefe des Spots anpassen
+    const fSpot = state.place.startsWith("spot:") ? state.spots.find((x) => x.id === state.place.slice(5)) : null;
+    const spIdx = (b0, date, noTod) => (fSpot ? withSpot(b0, spotAdjust(fSpot, w, date, b0.parts?.best, noTod)) : b0);
+    const dayDate = isNaN(d) ? new Date() : new Date(d);
+    const bi = spIdx(waterIndex(w, sol, null), dayDate, toDateKey(d) !== toDateKey(new Date()));
+    const hourAdj = fSpot ? (t) => spotAdjust(fSpot, w, new Date(t), bi.parts?.best).adj : null;
     const isToday = toDateKey(d) === toDateKey(new Date());
     const t0 = +sol.day, span = 864e5, pct = (t) => Math.max(0, Math.min(100, ((t - t0) / span) * 100));
     let tl = "";
@@ -1832,6 +1863,7 @@
           ${ringHtml(bi)}
           <div class="score-meta"><div class="t" id="fcScoreT">${scoreLabel(bi.score)}</div>
             <div class="s" id="fcScoreB">${indexBreakdown(bi)}</div>
+            <div class="s" id="fcSpotNote" ${bi.spotAdj ? "" : "hidden"}>${spotNote(bi)}</div>
             <div class="s">${ic("moon", "xs")}${phaseName(sol.ill.phase)} · ${Math.round(sol.ill.fraction * 100)} %</div>
             <div class="s">${ic("sun", "xs")}${hm(sol.sun.sunrise)} – ${hm(sol.sun.sunset)}</div></div>
         </div>
@@ -1885,7 +1917,7 @@
     const daysEl = $("#days");
     const renderDays = (fc) => {
       daysEl.innerHTML = Array.from({ length: 7 }, (_, i) => {
-        const dd = new Date(+today + i * 864e5), sc0 = solunar(dd, place.lat, place.lng), sc = waterIndex(w, sc0, fc);
+        const dd = new Date(+today + i * 864e5), sc0 = solunar(dd, place.lat, place.lng), sc = spIdx(waterIndex(w, sc0, fc), dd, true);
         const k = toDateKey(dd), j = fc ? fc.daily.time.indexOf(k) : -1;
         const has = j >= 0 && fc.daily.temperature_2m_max[j] != null;
         const [wi, wt] = has ? WMO(fc.daily.weather_code[j]) : ["moon", ""];
@@ -1898,8 +1930,8 @@
     };
     renderDays(null);
     const drawBite = (fc) => {
-      requestAnimationFrame(() => timeChart($("#chBite"), { data: biteSeries(sol, fc), unit: "", type: "bar", height: 100, maxY: 100 }));
-      const best = bestWindow(sol, fc);
+      requestAnimationFrame(() => timeChart($("#chBite"), { data: biteSeries(sol, fc, hourAdj), unit: "", type: "bar", height: 100, maxY: 100 }));
+      const best = bestWindow(sol, fc, hourAdj);
       $("#bestWin").innerHTML = best?.none ? `<div class="insight">${ic("moon", "sm")}<div>Für den Rest des Tages ist keine starke Beissphase mehr zu erwarten. Tippe unten auf einen anderen Tag.</div></div>` : best ? `<div class="insight">${ic("target", "sm")}<div>Beste Zeit ${isToday ? "heute" : "an diesem Tag"}: <b>${hm(best.from)} – ${hm(best.to)}</b> (Index ${best.v})${best.note ? ` · ${best.note}` : ""}</div></div>` : "";
     };
     drawBite(null);
@@ -1912,7 +1944,8 @@
       if (currentView !== "forecast") return;
       renderDays(fc);
       if (w && state.place === "water") state.live.fc[w.id] = fc;
-      const bi2 = waterIndex(w, sol, fc);
+      const bi2 = spIdx(waterIndex(w, sol, fc), dayDate, toDateKey(d) !== toDateKey(new Date()));
+      $("#fcSpotNote").innerHTML = spotNote(bi2); $("#fcSpotNote").hidden = !bi2.spotAdj;
       $("#fcScore .score-ring").outerHTML = ringHtml(bi2);
       $("#fcScoreT").textContent = scoreLabel(bi2.score);
       $("#fcScoreB").innerHTML = indexBreakdown(bi2);
@@ -1974,9 +2007,9 @@
     }
     return Math.max(2, Math.min(100, Math.round(v)));
   }
-  const biteSeries = (sol, fc) => Array.from({ length: 48 }, (_, k) => { const t = +sol.day + (k + 0.5) * 1800e3; return [t, biteAt(t, sol, fc)]; });
-  function bestWindow(sol, fc) {
-    const all = biteSeries(sol, fc), now = Date.now();
+  const biteSeries = (sol, fc, adj) => Array.from({ length: 48 }, (_, k) => { const t = +sol.day + (k + 0.5) * 1800e3, v = biteAt(t, sol, fc); return [t, adj ? Math.max(2, clampIdx(v + adj(t))) : v]; });
+  function bestWindow(sol, fc, adj) {
+    const all = biteSeries(sol, fc, adj), now = Date.now();
     const s = toDateKey(sol.day) === toDateKey(new Date()) ? all.filter(([t]) => t > now - 900e3) : all;
     if (!s.length) return null;
     const top = s.reduce((a, b) => (b[1] > a[1] ? b : a));
