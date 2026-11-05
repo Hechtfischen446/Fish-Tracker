@@ -131,7 +131,7 @@ main { flex: 1; position: relative; overflow: hidden; }
   flex-shrink: 0;
   height: calc(var(--tab-h) + var(--tab-pad));
   padding-bottom: var(--tab-pad);
-  display: grid; grid-template-columns: repeat(6, 1fr);
+  display: grid; grid-template-columns: repeat(5, 1fr);
   background: var(--surface);
   border-top: 1px solid var(--line);
   z-index: 1000;
