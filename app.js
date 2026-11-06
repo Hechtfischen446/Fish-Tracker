@@ -121,7 +121,8 @@
   const inScope = (x) => !state.activeId || x.waterId === state.activeId;
   const scopedCatches = () => state.catches.filter(inScope);
   const scopedSpots = () => state.spots.filter(inScope);
-  const speciesOfWater = (w) => catalogOf(w)?.species || w?.species || [];
+  // ältere Daten: «Brachsmen & Rotauge» war früher eine gemeinsame Art
+  const speciesOfWater = (w) => (catalogOf(w)?.species || w?.species || []).flatMap((n) => (n === "Brachsmen & Rotauge" ? ["Brachsmen", "Rotauge"] : [n]));
 
   function refPoint(w = activeWater()) {
     if (w) return { lat: w.lat, lng: w.lng };
@@ -2069,8 +2070,8 @@
   // Passende Fischarten je Tageszeit (nur Arten des Gewässers, in Saison, nicht in Laichzeit)
   const DAYPART_FISH = {
     twilight: ["Hecht", "Zander", "Egli", "Seeforelle", "Bachforelle", "Alet", "Barbe", "Schleie"],
-    night: ["Zander", "Wels", "Trüsche", "Karpfen", "Barbe", "Brachsmen & Rotauge"],
-    day: ["Egli", "Felchen", "Seesaibling", "Hecht", "Alet", "Äsche", "Brachsmen & Rotauge"],
+    night: ["Zander", "Wels", "Trüsche", "Karpfen", "Barbe", "Brachsmen", "Rotauge"],
+    day: ["Egli", "Felchen", "Seesaibling", "Hecht", "Alet", "Äsche", "Brachsmen", "Rotauge"],
   };
   function dayPart(t, sol) {
     const r = sol.sun.sunrise, s = sol.sun.sunset;

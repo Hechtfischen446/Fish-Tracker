@@ -140,14 +140,24 @@ window.FISH_GUIDE = [
     temp: "Ideal 16–24 °C",
   },
   {
-    name: "Brachsmen & Rotauge", alias: ["Brachse", "Brasse", "Rotauge", "Plötze", "Weissfisch", "Brème", "Gardon"], type: "Friedfisch",
-    months: [1, 1, 2, 2, 2, 3, 3, 3, 3, 2, 2, 1], spawn: [3, 4, 5],
-    daytime: "Ganztägig, Brachsmen bevorzugt abends und nachts.",
-    spots: "Tieferes Freiwasser, Häfen, Kanäle, ruhige Flussabschnitte.",
-    techniques: ["Feederangeln", "Zapfen (Match)", "Method-Feeder"],
+    name: "Brachsmen", alias: ["Brachse", "Brasse", "Blei", "Brème"], type: "Friedfisch",
+    months: [1, 1, 2, 2, 2, 3, 3, 3, 3, 2, 2, 1], spawn: [4, 5],
+    daytime: "Abends und nachts, bei trübem Wetter auch tagsüber.",
+    spots: "Tieferes Freiwasser über schlammigem Grund, Häfen, Kanäle, ruhige Flussabschnitte.",
+    techniques: ["Feederangeln", "Method-Feeder", "Grundangeln"],
     baits: "Maden, Caster, Mais, Wurm, Teig, Futter mit Lockstoffen.",
-    tips: "Konstant füttern hält den Schwarm am Platz. Ideal für Einsteiger.",
-    temp: "Weiter Bereich, ideal 14–22 °C",
+    tips: "Brachsmen ziehen in grossen Schwärmen – konstant füttern hält sie am Platz.",
+    temp: "Weiter Bereich, ideal 15–24 °C",
+  },
+  {
+    name: "Rotauge", alias: ["Plötze", "Weissfisch", "Gardon"], type: "Friedfisch",
+    months: [1, 1, 2, 2, 2, 3, 3, 3, 3, 2, 2, 1], spawn: [3, 4],
+    daytime: "Ganztägig, besonders morgens und abends.",
+    spots: "Ufernahe Krautkanten, Schilf, Stege, Häfen und ruhige Buchten.",
+    techniques: ["Zapfen (Match)", "Feederangeln", "Stippen"],
+    baits: "Maden, Caster, Brot, Teig, kleine Würmer, Hanf.",
+    tips: "Feine Montage mit kleinem Haken (Gr. 14–18). Ideal für Einsteiger und Kinder.",
+    temp: "Weiter Bereich, ideal 12–22 °C",
   },
   {
     name: "Wels", alias: ["Waller", "Silure", "Siluro"], type: "Raubfisch",
@@ -184,8 +194,8 @@ window.RULES_CH = [
 // Gewässer-Steckbriefe
 window.SWISS_WATERS = [
   // Seen
-  { key: "zurich", name: "Zürichsee", kind: "lake", lat: 47.255, lng: 8.66, area: 88, depth: 136, alt: 406, cantons: "ZH, SZ, SG", alplakes: "lowerzurich", hydro: ["Zürichsee"], species: ["Egli", "Felchen", "Hecht", "Zander", "Seeforelle", "Seesaibling", "Trüsche", "Wels", "Brachsmen & Rotauge"] },
-  { key: "zug", name: "Zugersee", kind: "lake", lat: 47.12, lng: 8.485, area: 38, depth: 198, alt: 413, cantons: "ZG, LU, SZ", alplakes: "zug", hydro: ["Zugersee"], species: ["Egli", "Felchen", "Hecht", "Seesaibling", "Seeforelle", "Trüsche", "Brachsmen & Rotauge"] },
+  { key: "zurich", name: "Zürichsee", kind: "lake", lat: 47.255, lng: 8.66, area: 88, depth: 136, alt: 406, cantons: "ZH, SZ, SG", alplakes: "lowerzurich", hydro: ["Zürichsee"], species: ["Egli", "Felchen", "Hecht", "Zander", "Seeforelle", "Seesaibling", "Trüsche", "Wels", "Brachsmen", "Rotauge"] },
+  { key: "zug", name: "Zugersee", kind: "lake", lat: 47.12, lng: 8.485, area: 38, depth: 198, alt: 413, cantons: "ZG, LU, SZ", alplakes: "zug", hydro: ["Zugersee"], species: ["Egli", "Felchen", "Hecht", "Seesaibling", "Seeforelle", "Trüsche", "Brachsmen", "Rotauge"] },
   { key: "vierwaldstaettersee", name: "Vierwaldstättersee", kind: "lake", lat: 46.99, lng: 8.47, area: 114, depth: 214, alt: 434, cantons: "LU, NW, OW, SZ, UR", alplakes: "lucernekreuztrichterandvitznauerbecken", hydro: ["Vierwaldstättersee"], species: ["Felchen", "Egli", "Hecht", "Seeforelle", "Seesaibling", "Trüsche"] },
   { key: "geneva", name: "Genfersee", osm: "Lac Léman", kind: "lake", lat: 46.45, lng: 6.55, area: 580, depth: 310, alt: 372, cantons: "VD, VS, GE (+F)", alplakes: "geneva", hydro: ["Lac Léman"], species: ["Egli", "Felchen", "Seeforelle", "Seesaibling", "Hecht", "Trüsche"] },
   { key: "bodensee", name: "Bodensee (Obersee)", osm: "Bodensee", kind: "lake", lat: 47.6, lng: 9.4, area: 473, depth: 251, alt: 395, cantons: "TG, SG (+D, A)", alplakes: "upperconstance", hydro: ["Bodensee, Obersee"], species: ["Felchen", "Egli", "Seeforelle", "Hecht", "Zander", "Seesaibling", "Trüsche", "Wels"] },
@@ -195,14 +205,14 @@ window.SWISS_WATERS = [
   { key: "lugano", name: "Luganersee", osm: "Lago di Lugano", kind: "lake", lat: 45.99, lng: 8.98, area: 49, depth: 288, alt: 271, cantons: "TI (+I)", alplakes: "upperlugano", hydro: ["Lago di Lugano"], species: ["Egli", "Hecht", "Seeforelle", "Felchen", "Karpfen", "Alet"] },
   { key: "thun", name: "Thunersee", kind: "lake", lat: 46.69, lng: 7.71, area: 48, depth: 217, alt: 558, cantons: "BE", alplakes: "thun", hydro: ["Thunersee"], species: ["Felchen", "Seeforelle", "Seesaibling", "Egli", "Hecht", "Trüsche"] },
   { key: "brienz", name: "Brienzersee", kind: "lake", lat: 46.73, lng: 7.96, area: 30, depth: 259, alt: 564, cantons: "BE", alplakes: "brienz", hydro: ["Brienzersee"], species: ["Felchen", "Seeforelle", "Seesaibling", "Hecht", "Egli"] },
-  { key: "biel", name: "Bielersee", kind: "lake", lat: 47.09, lng: 7.17, area: 39, depth: 74, alt: 429, cantons: "BE", alplakes: "biel", hydro: ["Bielersee"], species: ["Egli", "Felchen", "Hecht", "Zander", "Wels", "Brachsmen & Rotauge"] },
-  { key: "murten", name: "Murtensee", kind: "lake", lat: 46.93, lng: 7.08, area: 23, depth: 46, alt: 429, cantons: "FR, VD", alplakes: "murten", hydro: ["Murtensee"], species: ["Egli", "Hecht", "Zander", "Wels", "Felchen", "Brachsmen & Rotauge"] },
+  { key: "biel", name: "Bielersee", kind: "lake", lat: 47.09, lng: 7.17, area: 39, depth: 74, alt: 429, cantons: "BE", alplakes: "biel", hydro: ["Bielersee"], species: ["Egli", "Felchen", "Hecht", "Zander", "Wels", "Brachsmen", "Rotauge"] },
+  { key: "murten", name: "Murtensee", kind: "lake", lat: 46.93, lng: 7.08, area: 23, depth: 46, alt: 429, cantons: "FR, VD", alplakes: "murten", hydro: ["Murtensee"], species: ["Egli", "Hecht", "Zander", "Wels", "Felchen", "Brachsmen", "Rotauge"] },
   { key: "walensee", name: "Walensee", kind: "lake", lat: 47.125, lng: 9.2, area: 24, depth: 151, alt: 419, cantons: "SG, GL", alplakes: "walensee", hydro: ["Walensee"], species: ["Felchen", "Seeforelle", "Seesaibling", "Egli", "Hecht", "Trüsche"] },
   { key: "sempach", name: "Sempachersee", kind: "lake", lat: 47.14, lng: 8.155, area: 14, depth: 87, alt: 504, cantons: "LU", alplakes: "sempach", hydro: ["Sempachersee"], species: ["Felchen", "Egli", "Hecht", "Karpfen", "Schleie"] },
   { key: "hallwil", name: "Hallwilersee", kind: "lake", lat: 47.28, lng: 8.22, area: 10, depth: 47, alt: 449, cantons: "AG, LU", alplakes: "hallwil", hydro: ["Hallwilersee"], species: ["Felchen", "Egli", "Hecht", "Zander", "Karpfen", "Schleie"] },
   { key: "baldegg", name: "Baldeggersee", kind: "lake", lat: 47.2, lng: 8.26, area: 5.2, depth: 66, alt: 463, cantons: "LU", alplakes: "baldegg", hydro: ["Baldeggersee"], species: ["Egli", "Hecht", "Felchen", "Karpfen"] },
   { key: "greifensee", name: "Greifensee", kind: "lake", lat: 47.35, lng: 8.68, area: 8.5, depth: 32, alt: 435, cantons: "ZH", alplakes: "greifensee", hydro: ["Greifensee"], species: ["Egli", "Hecht", "Zander", "Karpfen", "Schleie", "Wels", "Felchen"] },
-  { key: "pfaeffikersee", name: "Pfäffikersee", kind: "lake", lat: 47.35, lng: 8.78, area: 3.3, depth: 35, alt: 537, cantons: "ZH", alplakes: "pfaffikon", hydro: ["Pfäffikersee"], species: ["Egli", "Hecht", "Karpfen", "Schleie", "Brachsmen & Rotauge"] },
+  { key: "pfaeffikersee", name: "Pfäffikersee", kind: "lake", lat: 47.35, lng: 8.78, area: 3.3, depth: 35, alt: 537, cantons: "ZH", alplakes: "pfaffikon", hydro: ["Pfäffikersee"], species: ["Egli", "Hecht", "Karpfen", "Schleie", "Brachsmen", "Rotauge"] },
   { key: "aegerisee", name: "Ägerisee", kind: "lake", lat: 47.12, lng: 8.62, area: 7.3, depth: 82, alt: 724, cantons: "ZG", alplakes: "aegeri", hydro: ["Aegerisee"], species: ["Felchen", "Egli", "Hecht", "Seesaibling", "Seeforelle"] },
   { key: "sarnersee", name: "Sarnersee", kind: "lake", lat: 46.87, lng: 8.21, area: 7.4, depth: 52, alt: 469, cantons: "OW", alplakes: "sarnen", hydro: ["Sarnersee"], species: ["Felchen", "Egli", "Hecht", "Seeforelle"] },
   { key: "sihlsee", name: "Sihlsee", kind: "lake", lat: 47.13, lng: 8.78, area: 11, depth: 23, alt: 889, cantons: "SZ", alplakes: "sihlsee", hydro: [], species: ["Hecht", "Egli", "Felchen", "Seeforelle"] },
@@ -255,10 +265,8 @@ window.FISH_PHOTOS = {
     "cutout": true
   },
   "Bachforelle": {
-    "file": "images/fish/bachforelle.jpg",
-    "credit": "© Mario Vega Pérez",
-    "license": "CC BY-NC",
-    "source": "https://www.inaturalist.org/photos/75714590"
+    "file": "images/fish/bachforelle.jpg?v=3",
+    "cutout": true
   },
   "Seesaibling": {
     "file": "images/fish/seesaibling.jpg?v=2",
@@ -271,42 +279,35 @@ window.FISH_PHOTOS = {
     "source": "https://www.inaturalist.org/photos/682085"
   },
   "Trüsche": {
-    "file": "images/fish/truesche.jpg",
-    "credit": "© polarina",
-    "license": "CC BY-NC",
-    "source": "https://www.inaturalist.org/photos/145869053"
+    "file": "images/fish/truesche.jpg?v=3",
+    "cutout": true
   },
   "Barbe": {
     "file": "images/fish/barbe.jpg?v=2",
     "cutout": true
   },
   "Alet": {
-    "file": "images/fish/alet.jpg",
-    "credit": "© Brian Gratwicke",
-    "license": "CC BY-NC",
-    "source": "https://www.inaturalist.org/photos/4222770"
+    "file": "images/fish/alet.jpg?v=3",
+    "cutout": true
   },
   "Karpfen": {
-    "file": "images/fish/karpfen.jpg",
-    "credit": "© Austin D West",
-    "license": "CC BY-NC",
-    "source": "https://www.inaturalist.org/photos/301455802"
+    "file": "images/fish/karpfen.jpg?v=3",
+    "cutout": true
   },
   "Schleie": {
     "file": "images/fish/schleie.jpg?v=2",
     "cutout": true
   },
-  "Brachsmen & Rotauge": {
-    "file": "images/fish/brachsmen.jpg?v=2",
-    "cutout": true,
-    "file2": "images/fish/rotauge.jpg?v=2",
-    "labels": [
-      "Brachsmen",
-      "Rotauge"
-    ]
-  },
   "Wels": {
     "file": "images/fish/wels.jpg?v=2",
+    "cutout": true
+  },
+  "Brachsmen": {
+    "file": "images/fish/brachsmen.jpg?v=3",
+    "cutout": true
+  },
+  "Rotauge": {
+    "file": "images/fish/rotauge.jpg?v=3",
     "cutout": true
   }
 };
