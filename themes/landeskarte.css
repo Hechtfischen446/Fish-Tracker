@@ -1,0 +1,17 @@
+/* Variante A «Landeskarte»: schweizerisch-sachlich, Papierton, Seeblau, Systemschrift */
+:root {
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-head: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --bg: #f3f2ee; --surface: #ffffff; --surface-2: #efeee9;
+  --ink: #1c1d1f; --ink-2: #55585c; --ink-3: #8a8d91; --line: #e3e1db; --line-strong: #cfccc4;
+  --accent: #1f5f8b; --accent-ink: #fff; --accent-soft: #e6eef4;
+  --good: #2e7d4f; --warn: #b8862b; --bad: #c0392b;
+  --hero-bg: #ffffff; --hero-ink: #1c1d1f; --hero-ink-2: #6b6e72; --hero-rule: #e3e1db; --hero-insight: #f3f2ee; --hero-accent: #1f5f8b; --hero-accent-ink: #fff; --hero-line: #e3e1db;
+  --fab-bg: #c0392b; --fab-ink: #fff;
+  --r-card: 10px; --r-btn: 8px; --r-chip: 6px; --r-sheet: 14px;
+}
+@media (prefers-color-scheme: dark) { :root {
+  --bg: #161718; --surface: #1f2022; --surface-2: #27292b; --ink: #ececea; --ink-2: #b3b4b1; --ink-3: #85878a; --line: #303235; --line-strong: #3d4043;
+  --accent: #6aa7d3; --accent-ink: #0c1a24; --accent-soft: #1d2c37;
+  --hero-bg: #1f2022; --hero-ink: #ececea; --hero-ink-2: #9a9c9f; --hero-rule: #34363a; --hero-insight: #27292b; --hero-accent: #6aa7d3; --hero-accent-ink: #0c1a24; --hero-line: #303235;
+} }
