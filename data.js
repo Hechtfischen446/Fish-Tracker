@@ -273,10 +273,8 @@ window.FISH_PHOTOS = {
     "cutout": true
   },
   "Äsche": {
-    "file": "images/fish/aesche.jpg",
-    "credit": "© Gilles San Martin",
-    "license": "CC BY-SA",
-    "source": "https://www.inaturalist.org/photos/682085"
+    "file": "images/fish/aesche.jpg?v=3",
+    "cutout": true
   },
   "Trüsche": {
     "file": "images/fish/truesche.jpg?v=3",
