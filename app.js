@@ -845,8 +845,8 @@
       el.innerHTML = `<div class="pt">${esc(c.species)}${c.length ? ` · ${nf(c.length)} cm` : ""}</div><div class="ps">${esc(fmtDateTime(c.date))}${c.waterTemp != null ? ` · Wasser ${nf(c.waterTemp)} °C` : ""}</div>
         ${c.photo ? `<img src="${c.photo}" style="width:100%;max-width:220px;border-radius:10px;display:block;margin-bottom:6px">` : ""}
         ${[c.technique, c.bait].filter(Boolean).map((t) => `<span class="tag">${esc(t)}</span>`).join("")}
-        <div class="row"><button class="btn btn-sm">Bearbeiten</button></div>`;
-      el.querySelector("button").onclick = () => openCatchForm(c);
+        <div class="row"><button class="btn btn-sm">Details</button></div>`;
+      el.querySelector("button").onclick = () => openCatchDetail(c);
       L.marker([c.lat, c.lng], { icon: mkIcon("catch", "fish") }).bindPopup(el).addTo(catchLayer);
     });
     if (mapLayers.spots) scopedSpots().forEach((s) => {
@@ -1403,7 +1403,7 @@
   $("#catchSeg").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) { state.catchSeg = b.dataset.seg; renderCatches(); } });
   document.addEventListener("click", (e) => {
     const c = e.target.closest("[data-catch]");
-    if (c) return openCatchForm(state.catches.find((x) => x.id === c.dataset.catch));
+    if (c) return openCatchDetail(state.catches.find((x) => x.id === c.dataset.catch), c.closest(".catch-grid") ? c.closest(".catch-grid").dataset.fromSpot : null);
     const s = e.target.closest("[data-spot]");
     if (s) return openSpotDetail(state.spots.find((x) => x.id === s.dataset.spot));
     const a = e.target.closest("[data-action]");
@@ -1455,6 +1455,47 @@
       <div class="card"><h3>Nach Fangtiefe</h3>${barsList(["0–5 m", "5–10 m", "10–20 m", "20–40 m", "> 40 m"].filter((k) => depths.has(k)).map((k) => [k, depths.get(k)]))}</div>
       <div class="card"><h3>Nach Monat</h3>${barsList(perMonth.map((n, i) => [MONTHS[i], n]).filter((e) => e[1]))}</div>
       <div class="card"><h3>Nach Mondphase</h3>${barsList([...phases.entries()].sort((a, b) => b[1] - a[1]))}</div>`;
+  }
+
+  // ───────────────────────── Fang-Details ─────────────────────────
+  function openCatchDetail(c, fromSpot) {
+    if (!c) return;
+    const w = waterById(c.waterId), sp = c.spotId ? state.spots.find((x) => x.id === c.spotId) : null;
+    const fact = (k, v, u) => (v != null && v !== "" ? `<div><div class="k">${k}</div><div class="v">${v}${u ? ` <small>${u}</small>` : ""}</div></div>` : "");
+    const row = (k, v) => (v ? `<div class="cd-row"><span>${k}</span><b>${v}</b></div>` : "");
+    const facts = [fact("Länge", c.length ? nf(c.length) : null, "cm"), fact("Gewicht", c.weight ? nf(c.weight, 2) : null, "kg"), fact("Fangtiefe", c.depth ? nf(c.depth) : null, "m")].filter(Boolean);
+    const wx = c.weather;
+    const moon = phaseName(SunCalc.getMoonIllumination(new Date(c.date)).phase);
+    const rule = c.released === "ja" ? null : ruleCheck(w, c.species, c.length, c.date);
+    openSheet({
+      title: `${c.species}${c.length ? ` · ${nf(c.length)} cm` : ""}`, plain: true, noFooter: true,
+      body: `
+        ${c.photo ? `<img class="cd-photo" src="${c.photo}" alt="">` : ""}
+        ${facts.length ? `<div class="facts cd-facts" style="grid-template-columns:repeat(${facts.length},1fr)">${facts.join("")}</div>` : ""}
+        <div class="cd-list">
+          ${row("Datum", esc(new Date(c.date).toLocaleString("de-CH", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })))}
+          ${row("Gewässer", w ? esc(w.name) : "")}
+          ${row("Spot", sp ? esc(sp.name) : "")}
+          ${row("Technik", esc(c.technique || ""))}
+          ${row("Köder", esc(c.bait || ""))}
+          ${row("Verbleib", c.released === "ja" ? "Zurückgesetzt" : c.released === "nein" ? "Entnommen" : "")}
+          ${row("Wassertemperatur", c.waterTemp != null ? `${nf(c.waterTemp)} °C` : "")}
+          ${row("Wetter", wx ? `${wx.code != null ? esc(WMO(wx.code)[1]) + ", " : ""}${nf(wx.temp)} °C, Wind ${nf(wx.wind, 0)} km/h ${dirName(wx.dir)}` : "")}
+          ${row("Luftdruck", wx?.pressure != null ? `${nf(wx.pressure, 0)} hPa${wx.pressureTrend != null ? ` (${wx.pressureTrend > 0.5 ? "steigend" : wx.pressureTrend < -0.5 ? "fallend" : "gleichbleibend"})` : ""}` : "")}
+          ${row("Mond", esc(moon))}
+        </div>
+        ${rule?.bad ? `<div class="rule-warn bad" style="margin-top:12px">${ic("info", "sm")}<span>${esc(rule.text)}</span></div>` : ""}
+        ${c.notes ? `<p class="small" style="margin-top:12px;white-space:pre-line">${esc(c.notes)}</p>` : ""}
+        <div class="row wrap" style="margin-top:16px">
+          ${fromSpot ? `<button type="button" class="btn btn-sm" id="cdBack">${ic("chev-r", "xs")}Zurück zum Spot</button>` : ""}
+          ${c.lat != null ? `<button type="button" class="btn btn-sm" id="cdMap">${ic("map", "xs")}Auf Karte</button>` : ""}
+          <button type="button" class="btn btn-sm" id="cdEdit">Bearbeiten</button>
+        </div>
+        ${wx?.source ? `<p class="source">Wetter: ${esc(wx.source)}</p>` : ""}`,
+    });
+    $("#cdEdit").onclick = () => openCatchForm(c);
+    if ($("#cdMap")) $("#cdMap").onclick = () => { sheet.close(); showView("map"); setTimeout(() => map.flyTo([c.lat, c.lng], 16), 80); };
+    if ($("#cdBack")) $("#cdBack").onclick = () => openSpotDetail(state.spots.find((x) => x.id === fromSpot));
   }
 
   // ───────────────────────── Spot-Details ─────────────────────────
@@ -1551,10 +1592,10 @@
             ${topSp[0] ? `<span class="tag accent">Häufigste Art: ${esc(topSp[0][0])}</span>` : ""}
             ${big?.length ? `<span class="tag">Grösster: ${esc(big.species)} ${nf(big.length)} cm</span>` : ""}
             ${bait ? `<span class="tag">Köder: ${esc(bait[0])}</span>` : ""}${tech ? `<span class="tag">Technik: ${esc(tech[0])}</span>` : ""}</div>
-          <div class="catch-grid">${cs.map((c) => `<button type="button" class="catch-card" data-catch="${c.id}">
+          <div class="catch-grid" data-from-spot="${sp.id}">${cs.map((c) => `<button type="button" class="catch-card" data-catch="${c.id}">
             ${c.photo ? `<img src="${c.photo}" alt="" loading="lazy">` : `<span class="cc-ph">${ic("fish", "lg")}</span>`}
             <span class="cc-body"><span class="cc-t">${esc(c.species)}${c.length ? ` · ${nf(c.length)} cm` : ""}</span>
-            <span class="cc-s">${esc(fmtDate(c.date))}${c.bait ? ` · ${esc(c.bait)}` : ""}</span></span></button>`).join("")}</div>`
+            <span class="cc-s">${esc(fmtDate(c.date))}</span></span></button>`).join("")}</div>`
           : `<p class="small muted">Noch keine Fänge an diesem Spot. Tippe auf «Fang hier».</p>`}`,
     });
     if (sp.lat != null) depthAt(sp.lat, sp.lng).then((b) => { const el = $("#spotDepthAt"); if (b && el) el.innerHTML = `<span class="depth-at"><i style="background:${b[2]}"></i>Tiefe laut Karte: ${bandLabel(b)}</span>`; });
