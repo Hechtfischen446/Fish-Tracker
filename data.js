@@ -235,34 +235,24 @@ window.SWISS_WATERS = [
 // Fotos der Fischarten (iNaturalist, freie Lizenzen – Urheber werden in der App angezeigt)
 window.FISH_PHOTOS = {
   "Egli": {
-    "file": "images/fish/egli.jpg",
-    "credit": "© Gilles San Martin",
-    "license": "CC BY-SA",
-    "source": "https://www.inaturalist.org/photos/194421912"
+    "file": "images/fish/egli.jpg?v=2",
+    "cutout": true
   },
   "Felchen": {
-    "file": "images/fish/felchen.jpg",
-    "credit": "© mikkel65",
-    "license": "CC BY-NC",
-    "source": "https://www.inaturalist.org/photos/112154426"
+    "file": "images/fish/felchen.jpg?v=2",
+    "cutout": true
   },
   "Hecht": {
-    "file": "images/fish/hecht.jpg",
-    "credit": "© Frédéric ANDRE",
-    "license": "CC BY-NC",
-    "source": "https://www.inaturalist.org/photos/720194889"
+    "file": "images/fish/hecht.jpg?v=2",
+    "cutout": true
   },
   "Zander": {
-    "file": "images/fish/zander.jpg",
-    "credit": "© Christa Rohrbach",
-    "license": "CC BY-NC-SA",
-    "source": "https://www.inaturalist.org/photos/48682903"
+    "file": "images/fish/zander.jpg?v=2",
+    "cutout": true
   },
   "Seeforelle": {
-    "file": "images/fish/seeforelle.jpg",
-    "credit": "© Alexei Poletaev",
-    "license": "CC BY-NC-SA",
-    "source": "https://www.inaturalist.org/photos/392839638"
+    "file": "images/fish/seeforelle.jpg?v=2",
+    "cutout": true
   },
   "Bachforelle": {
     "file": "images/fish/bachforelle.jpg",
@@ -271,10 +261,8 @@ window.FISH_PHOTOS = {
     "source": "https://www.inaturalist.org/photos/75714590"
   },
   "Seesaibling": {
-    "file": "images/fish/seesaibling.jpg",
-    "credit": "© Brent Guinn",
-    "license": "CC BY-NC",
-    "source": "https://www.inaturalist.org/photos/111218621"
+    "file": "images/fish/seesaibling.jpg?v=2",
+    "cutout": true
   },
   "Äsche": {
     "file": "images/fish/aesche.jpg",
@@ -289,10 +277,8 @@ window.FISH_PHOTOS = {
     "source": "https://www.inaturalist.org/photos/145869053"
   },
   "Barbe": {
-    "file": "images/fish/barbe.jpg",
-    "credit": "© Bas Kers",
-    "license": "CC BY-NC-SA",
-    "source": "https://www.inaturalist.org/photos/51360"
+    "file": "images/fish/barbe.jpg?v=2",
+    "cutout": true
   },
   "Alet": {
     "file": "images/fish/alet.jpg",
@@ -307,22 +293,21 @@ window.FISH_PHOTOS = {
     "source": "https://www.inaturalist.org/photos/301455802"
   },
   "Schleie": {
-    "file": "images/fish/schleie.jpg",
-    "credit": "© Bradley Rasmussen",
-    "license": "CC BY-NC",
-    "source": "https://www.inaturalist.org/photos/15103391"
+    "file": "images/fish/schleie.jpg?v=2",
+    "cutout": true
   },
   "Brachsmen & Rotauge": {
-    "file": "images/fish/brachsmen.jpg",
-    "credit": "© Peter",
-    "license": "CC BY-NC",
-    "source": "https://www.inaturalist.org/photos/48799478"
+    "file": "images/fish/brachsmen.jpg?v=2",
+    "cutout": true,
+    "file2": "images/fish/rotauge.jpg?v=2",
+    "labels": [
+      "Brachsmen",
+      "Rotauge"
+    ]
   },
   "Wels": {
-    "file": "images/fish/wels.jpg",
-    "credit": "© Bernard DUPONT",
-    "license": "CC BY-SA",
-    "source": "https://www.inaturalist.org/photos/96387493"
+    "file": "images/fish/wels.jpg?v=2",
+    "cutout": true
   }
 };
 

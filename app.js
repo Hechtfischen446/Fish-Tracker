@@ -1699,7 +1699,7 @@
         <div class="card-head"><h3>Fischarten · ${MONTHS[month]}</h3><button class="link-btn" data-action="goto" data-view="guide">Alle</button></div>
         ${species.length ? `<div class="list" style="border:0;border-radius:0;margin:0 -16px -16px">${species.map(({ f, lvl, spawn }) => `
           <button type="button" class="li" data-action="guide-fish" data-name="${esc(f.name)}">
-            ${photoOf(f.name) ? `<img class="thumb sm" src="${photoOf(f.name).file}" alt="" loading="lazy">` : ""}
+            ${photoOf(f.name) ? `<img class="thumb sm${photoOf(f.name).cutout ? " cutout" : ""}" src="${photoOf(f.name).file}" alt="" loading="lazy">` : ""}
             <span class="body"><span class="t">${esc(f.name)}</span><span class="s">${esc(f.techniques.slice(0, 2).join(" · "))}</span></span>
             <span class="end">${spawn ? `<span class="pill pill-warn">Laichzeit</span>` : `<span class="pill ${lvl >= 3 ? "pill-good" : lvl === 2 ? "pill-accent" : "pill-neutral"}">${["Kaum", "Mässig", "Gut", "Sehr gut"][lvl]}</span>`}</span>
           </button>`).join("")}</div>`
@@ -2188,8 +2188,14 @@
 
   // ───────────────────────── Wissen ─────────────────────────
   const photoOf = (name) => window.FISH_PHOTOS?.[name] || null;
-  const fishThumb = (name) => { const p = photoOf(name); return p ? `<img class="fish-thumb" src="${p.file}" alt="${esc(name)}" loading="lazy">` : `<span class="badge-ic">${ic("fish")}</span>`; };
-  const fishPhoto = (name) => { const p = photoOf(name); return p ? `<figure class="fish-photo"><img src="${p.file}" alt="${esc(name)}" loading="lazy"><figcaption>Foto: ${esc(p.credit)} · <a href="${p.source}" target="_blank" rel="noopener">${esc(p.license)}</a> · iNaturalist</figcaption></figure>` : ""; };
+  const fishThumb = (name) => { const p = photoOf(name); return p ? `<img class="fish-thumb${p.cutout ? " cutout" : ""}" src="${p.file}" alt="${esc(name)}" loading="lazy">` : `<span class="badge-ic">${ic("fish")}</span>`; };
+  const fishPhoto = (name) => {
+    const p = photoOf(name);
+    if (!p) return "";
+    const img = (src, alt) => `<img class="${p.cutout ? "cutout" : ""}" src="${src}" alt="${esc(alt)}" loading="lazy">`;
+    const imgs = p.file2 ? `<div class="fish-pair">${[p.file, p.file2].map((f, i) => `<div>${img(f, p.labels?.[i] || name)}<span>${esc(p.labels?.[i] || "")}</span></div>`).join("")}</div>` : img(p.file, name);
+    return `<figure class="fish-photo">${imgs}${p.source ? `<figcaption>Foto: ${esc(p.credit)} · <a href="${p.source}" target="_blank" rel="noopener">${esc(p.license)}</a> · iNaturalist</figcaption>` : ""}</figure>`;
+  };
 
   // ───────────────────────── KI-Berater ─────────────────────────
   // Ohne Schlüssel: eingebauter Offline-Berater (Wissen + aktuelle Bedingungen der App).
