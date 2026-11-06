@@ -865,3 +865,10 @@ img.thumb { object-fit: cover; }
 .cd-row span { color: var(--ink-3); flex-shrink: 0; }
 .cd-row b { font-weight: 600; text-align: right; }
 #cdBack .ic { transform: rotate(180deg); }
+
+/* Steckbrief-Bilder (freigestellt auf Weiss): ganzer Fisch sichtbar, nichts abgeschnitten */
+.fish-photo img.cutout { aspect-ratio: 2 / 1; object-fit: contain; background: #fff; border: 1px solid var(--line); }
+.fish-pair { display: grid; grid-template-columns: 1fr; gap: 8px; }
+.fish-pair > div { position: relative; }
+.fish-pair span { position: absolute; left: 10px; top: 8px; font-size: .72rem; font-weight: 700; color: #33474d; background: rgba(255,255,255,.85); padding: 2px 8px; border-radius: 999px; }
+.fish-thumb.cutout, .thumb.cutout { object-fit: contain; background: #fff; padding: 3px; box-sizing: border-box; border: 1px solid var(--line); }
