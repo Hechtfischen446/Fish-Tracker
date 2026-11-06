@@ -1562,8 +1562,7 @@
     const w = waterById(sp.waterId);
     const cs = state.catches.filter((c) => c.spotId === sp.id).sort((a, b) => new Date(b.date) - new Date(a.date));
     const bi = spotIndex(sp);
-    const topSp = topBy(cs, "species"), bait = topBy(cs, "bait")[0], tech = topBy(cs, "technique")[0];
-    const big = cs.reduce((m, c) => (c.length > (m?.length || 0) ? c : m), null);
+    const topSp = topBy(cs, "species");
     const fact = (k, v) => (v ? `<div><div class="k">${k}</div><div class="v">${v}</div></div>` : "");
     openSheet({
       title: sp.name, plain: true, noFooter: true,
@@ -1588,10 +1587,16 @@
           <button type="button" class="btn btn-sm" id="sdEdit">Bearbeiten</button>
         </div>
         <h3 style="margin-top:18px">Fänge an diesem Spot · ${cs.length}</h3>
-        ${cs.length ? `<div class="row wrap" style="margin-bottom:10px">
-            ${topSp[0] ? `<span class="tag accent">Häufigste Art: ${esc(topSp[0][0])}</span>` : ""}
-            ${big?.length ? `<span class="tag">Grösster: ${esc(big.species)} ${nf(big.length)} cm</span>` : ""}
-            ${bait ? `<span class="tag">Köder: ${esc(bait[0])}</span>` : ""}${tech ? `<span class="tag">Technik: ${esc(tech[0])}</span>` : ""}</div>
+        ${cs.length ? `<p class="small muted" style="margin:-4px 0 10px">${(() => {
+            // nur allgemeine Infos: Arten, Zeitraum, übliche Tageszeit
+            const months = cs.map((c) => new Date(c.date)), first = new Date(Math.min(...months)), last = new Date(Math.max(...months));
+            const mm = (d0) => `${MONTHS[d0.getMonth()]} ${d0.getFullYear()}`;
+            const span = mm(first) === mm(last) ? mm(first) : `${mm(first)} – ${mm(last)}`;
+            const hrs = cs.map((c) => new Date(c.date).getHours()).sort((a, b) => a - b);
+            const tod = (h) => (h < 10 ? "morgens" : h < 14 ? "mittags" : h < 18 ? "nachmittags" : "abends");
+            const todTop = cs.length >= 2 ? topBy(hrs.map((h) => ({ t: tod(h) })), "t")[0] : null;
+            return [topSp.map(([n, k]) => `${esc(n)}${cs.length > 1 ? ` ${k}×` : ""}`).join(", "), span, todTop ? `meist ${todTop[0]}` : ""].filter(Boolean).join(" · ");
+          })()}</p>
           <div class="catch-grid" data-from-spot="${sp.id}">${cs.map((c) => `<button type="button" class="catch-card" data-catch="${c.id}">
             ${c.photo ? `<img src="${c.photo}" alt="" loading="lazy">` : `<span class="cc-ph">${ic("fish", "lg")}</span>`}
             <span class="cc-body"><span class="cc-t">${esc(c.species)}${c.length ? ` · ${nf(c.length)} cm` : ""}</span>
