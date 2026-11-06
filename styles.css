@@ -856,3 +856,12 @@ img.thumb { object-fit: cover; }
 .claude-login .btn { width: 100%; justify-content: center; }
 .chat-msg .claude-btn { display: inline-flex; margin-top: 8px; text-decoration: none; }
 .claude-login .claude-title { font-weight: 700; font-size: 1.15rem; }
+
+/* Fang-Details */
+.cd-photo { display: block; width: auto; max-width: 100%; height: auto; max-height: 62vh; border-radius: 16px; margin: 0 auto 12px; }
+.cd-facts { margin-top: 0; margin-bottom: 12px; }
+.cd-list { display: flex; flex-direction: column; }
+.cd-row { display: flex; justify-content: space-between; gap: 14px; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: .9rem; }
+.cd-row span { color: var(--ink-3); flex-shrink: 0; }
+.cd-row b { font-weight: 600; text-align: right; }
+#cdBack .ic { transform: rotate(180deg); }
