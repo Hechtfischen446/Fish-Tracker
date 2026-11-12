@@ -442,21 +442,27 @@
   // Beissindex: 50 = durchschnittlicher Tag. Nur wenn Mond & Sonne, Saison/Wassertemperatur und Wetter
   // zusammenpassen, geht er deutlich über 70; die Werte werden dafür sanft gedeckelt (tanh).
   // Mond & Sonne zählt bewusst weniger: die Wirkung ist kaum belegt.
-  const combineIndex = (zS, zF, zW) => Math.round(Math.max(5, Math.min(97, 50 + 45 * Math.tanh((8 * zS + 14 * zF + 10 * zW) / 45))));
+  const combineIndex = (zS, zF, zW) => {
+    // Ein gewöhnlicher Tag liegt bei rund 42. Positive Faktoren zählen bewusst weniger als negative,
+    // damit «gut» die Ausnahme bleibt und kein Tag zu gut aussieht, um wahr zu sein.
+    let sum = 8 * zS + 14 * zF + 10 * zW;
+    if (sum > 0) sum *= 0.75;
+    return Math.round(Math.max(5, Math.min(95, 42 + 45 * Math.tanh(sum / 45))));
+  };
   function waterIndex(w, sol, fc) {
     if (!w) return { score: combineIndex((sol.score - 60) / 25, 0, 0), parts: null };
     const temp = dayWaterTemp(w, sol.day);
     const fa = fishActivity(w, sol.day, temp);
     const wx = dayWeather(fc, sol.day);
-    const score = combineIndex((sol.score - 60) / 25, (fa.v - 0.55) / 0.2, wx == null ? 0 : (wx - 0.5) / 0.2);
+    const score = combineIndex((sol.score - 60) / 25, (fa.v - 0.6) / 0.2, wx == null ? 0 : (wx - 0.5) / 0.2);
     sol.wf = fa.v; // auch der stündliche Verlauf berücksichtigt das Gewässer
     return { score, parts: { sol: sol.score, fish: Math.round(fa.v * 100), wx: wx == null ? null : Math.round(wx * 100), temp, best: fa.best } };
   }
   const indexBreakdown = (bi) => bi.parts ? `<span class="tag" title="Mond & Sonne">${ic("moon", "xs")}${bi.parts.sol}</span><span class="tag" title="Fischarten aktiv">${ic("fish", "xs")}${bi.parts.fish}</span>${bi.parts.wx != null ? `<span class="tag" title="Wetter">${ic("cloud", "xs")}${bi.parts.wx}</span>` : ""}` : "";
   const ringHtml = (bi) => `<div class="score-ring" style="--p:${bi.score};--sc:${scoreColor(bi.score)}"><span>${bi.score}</span></div>`;
 
-  const scoreLabel = (s) => (s >= 80 ? "Sehr gut" : s >= 65 ? "Gut" : s >= 50 ? "Durchschnittlich" : s >= 35 ? "Eher schwach" : "Schwach");
-  const scoreColor = (s) => (s >= 65 ? "var(--good)" : s >= 45 ? "var(--warn)" : "var(--bad)");
+  const scoreLabel = (s) => (s >= 75 ? "Sehr gut" : s >= 60 ? "Gut" : s >= 45 ? "Durchschnittlich" : s >= 30 ? "Eher schwach" : "Schwach");
+  const scoreColor = (s) => (s >= 60 ? "var(--good)" : s >= 45 ? "var(--warn)" : "var(--bad)");
 
   // ───────────────────────── Diagramme ─────────────────────────
   function niceTicks(min, max, n = 4) {
@@ -758,7 +764,7 @@
         <h3>Symbole</h3>
         <div class="legend-list">
           ${sym(pin("catch", "fish"), "Fang", "Deine eingetragenen Fänge")}
-          ${sym(`<div class="mk-wrap">${pin("spot", "pin")}<span class="mk-idx" style="background:var(--good)">72</span></div>`, "Spot mit Beissindex", "Zahl = Beissindex heute: <span style='color:var(--good)'>grün ab 65</span>, <span style='color:var(--warn)'>gelb 45–64</span>, <span style='color:var(--bad)'>rot unter 45</span>. Antippen zeigt alle Details.")}
+          ${sym(`<div class="mk-wrap">${pin("spot", "pin")}<span class="mk-idx" style="background:var(--good)">72</span></div>`, "Spot mit Beissindex", "Zahl = Beissindex heute: <span style='color:var(--good)'>grün ab 60</span>, <span style='color:var(--warn)'>gelb 45–59</span>, <span style='color:var(--bad)'>rot unter 45</span>. Antippen zeigt alle Details.")}
           ${sym(`<span class="lg-circle" style="border-color:#3df5b0;background:rgba(61,245,176,.18)"></span>`, "Hotspot", "Aus deinen Fängen erkannt – grün: passt heute gut, gelb: mittel, blau: eher nicht")}
           ${sym(pin("public", "target"), "Angelplatz (OpenStreetMap)", "Öffentlich eingetragene Fischerplätze, Slipanlagen und Häfen")}
           ${sym(`<div class="me-dot"></div>`, "Dein Standort", "")}
@@ -1533,7 +1539,9 @@
       else if (dd > -6) { adj += 2; why.push(`${lbl} – knapp über der Sprungschicht`); }
     }
     // Spot verschiebt den Index höchstens um ±8
-    return { adj: Math.max(-8, Math.min(8, Math.round(adj))), why };
+    // Plus nur mit mindestens 3 Fängen am Spot (sonst Zufall), höchstens +5; Minus bis −8
+    if (adj > 0 && cs.length < 3) { adj = Math.min(adj, 2); }
+    return { adj: Math.max(-8, Math.min(5, Math.round(adj))), why };
   }
   // Tiefe aus der Tiefenkarte für Spots ohne eigene Angabe (wird im Hintergrund ermittelt)
   const autoDepths = {};
@@ -1928,8 +1936,8 @@
         <div id="periodsDetail">${periodsHtml(sol, null, w)}</div>
         <details class="explain"><summary>${ic("info", "xs")}Wie wird das berechnet?</summary>
           <p>Nach der <b>Solunar-Theorie</b> sind Fische aktiver, wenn der Mond im Zenit oder Nadir steht (Hauptbeisszeiten, ±1 h) und bei Mondauf- und -untergang (Nebenbeisszeiten, ±30 min). Bei Neu- und Vollmond ist der Effekt am stärksten. Fallen diese Zeiten in die <b>Morgen- oder Abenddämmerung</b>, steigt die Aktivität zusätzlich.</p>
-          <p>Der <b>Beissindex</b> vergleicht den Tag mit einem durchschnittlichen Angeltag an diesem Gewässer: <b>50 = durchschnittlich</b>. Berücksichtigt werden <b>Mond & Sonne</b>, <b>Fischarten aktiv</b> (Jahreszeit und Wassertemperatur für alle Fischarten des Gewässers, Laichzeiten zählen negativ) und das <b>Wetter</b> am Gewässer. Über 65 («gut») kommt er nur, wenn mehrere dieser Punkte zusammenpassen; über 80 ist selten.</p>
-          <p>Bei einem Spot verschieben deine Fänge dort und die Tiefe den Wert um höchstens ±8. Auch ein guter Index ist keine Garantie – er sagt nur, ob die Bedingungen eher besser oder schlechter als üblich sind.</p>
+          <p>Der <b>Beissindex</b> vergleicht den Tag mit einem durchschnittlichen Angeltag an diesem Gewässer: <b>rund 40–45 = ein gewöhnlicher Tag</b>. Berücksichtigt werden <b>Mond & Sonne</b>, <b>Fischarten aktiv</b> (Jahreszeit und Wassertemperatur für alle Fischarten des Gewässers, Laichzeiten zählen negativ) und das <b>Wetter</b> am Gewässer. Über 60 («gut») kommt er nur, wenn mehrere dieser Punkte zusammenpassen; über 75 ist sehr selten.</p>
+          <p>Bei einem Spot verschieben deine Fänge dort und die Tiefe den Wert um −8 bis +5 (ein Plus gibt es erst ab 3 Fängen am Spot). Auch ein guter Index ist keine Garantie – er sagt nur, ob die Bedingungen eher besser oder schlechter als üblich sind.</p>
           <p>Der stündliche Index berücksichtigt ausserdem das <b>Wetter</b>: Fallender Luftdruck und leichter Regen erhöhen ihn, starke Böen, Gewitter und stark steigender Druck senken ihn. Die Werte sind ein Anhaltspunkt, kein Versprechen.</p>
         </details>
       </div>
@@ -2045,7 +2053,8 @@
     });
     [sol.sun.sunrise, sol.sun.sunset].forEach((s) => { if (s && !isNaN(s)) v += 22 * Math.exp(-((((t - s) / 60e3) / 55) ** 2)); });
     v *= 0.72 + 0.28 * phase;
-    if (sol.wf != null) v *= 0.7 + 0.6 * sol.wf; // Fischarten des Gewässers aktiv?
+    if (sol.wf != null) v *= 0.6 + 0.5 * sol.wf; // Fischarten des Gewässers aktiv?
+    v *= 0.85;
     const i = hourAt(fc, t);
     if (i >= 0) {
       const H = fc.hourly, p = H.surface_pressure;
