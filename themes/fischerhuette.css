@@ -1,0 +1,19 @@
+/* Variante B «Fischerhütte»: warm wie ein Fangbuch – Sand, Waldgrün, Rost, Serifen-Titel */
+:root {
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+  --font-head: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --bg: #f2ece1; --surface: #fffcf6; --surface-2: #f4eee3;
+  --ink: #2a2520; --ink-2: #5e554a; --ink-3: #91877a; --line: #e4dccd; --line-strong: #d3c8b5;
+  --accent: #2f5d3a; --accent-ink: #fffcf6; --accent-soft: #e5ede3;
+  --good: #3d7a45; --warn: #b7802b; --bad: #a8432a;
+  --hero-bg: #2f4a36; --hero-ink: #fbf6ec; --hero-ink-2: #cfd8c8; --hero-rule: rgba(255,255,255,.18); --hero-insight: rgba(255,255,255,.09); --hero-accent: #e0a458; --hero-accent-ink: #2a2520;
+  --fab-bg: #b5562b; --fab-ink: #fffcf6;
+  --r-card: 8px; --r-btn: 8px; --r-chip: 999px; --r-sheet: 16px;
+}
+.page-head h1, .ws-title, .hero h1 { font-weight: 600; letter-spacing: -.01em; }
+.tile .v, .facts .v, .score-ring > span { font-weight: 600; }
+@media (prefers-color-scheme: dark) { :root {
+  --bg: #1a1814; --surface: #23201b; --surface-2: #2c2822; --ink: #f0e9dc; --ink-2: #c4b9a7; --ink-3: #8f8574; --line: #36312a; --line-strong: #463f36;
+  --accent: #8dbb8f; --accent-ink: #18221a; --accent-soft: #26332a;
+  --hero-bg: #24352a;
+} }

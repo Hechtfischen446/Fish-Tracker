@@ -1,0 +1,22 @@
+/* Variante C «Instrument»: nüchtern wie ein Profi-Gerät – Grau, Schwarz, Signalorange, kompakte Zahlen */
+:root {
+  --font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-head: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  --bg: #eceef0; --surface: #ffffff; --surface-2: #f3f4f6;
+  --ink: #111418; --ink-2: #4b5259; --ink-3: #868d95; --line: #dfe2e6; --line-strong: #c9cdd3;
+  --accent: #111418; --accent-ink: #ffffff; --accent-soft: #eceef0;
+  --good: #1f8a4c; --warn: #d97706; --bad: #d1342f;
+  --hero-bg: #1b2026; --hero-ink: #f3f4f6; --hero-ink-2: #9aa3ad; --hero-rule: rgba(255,255,255,.12); --hero-insight: rgba(255,255,255,.06); --hero-accent: #f06a1d; --hero-accent-ink: #fff;
+  --fab-bg: #f06a1d; --fab-ink: #fff;
+  --r-card: 6px; --r-btn: 6px; --r-chip: 6px; --r-sheet: 12px;
+}
+.page-head h1 { font-weight: 700; letter-spacing: -.03em; }
+.tile .v, .facts .v, .score-ring > span, .pidx { font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.tabbar button.active { color: #f06a1d; }
+.chart .series { stroke: #f06a1d !important; }
+.chart .area { fill: #f06a1d !important; }
+@media (prefers-color-scheme: dark) { :root {
+  --bg: #0f1114; --surface: #171a1e; --surface-2: #1e2227; --ink: #eef0f2; --ink-2: #aab1b8; --ink-3: #737b84; --line: #272b31; --line-strong: #343941;
+  --accent: #eef0f2; --accent-ink: #111418; --accent-soft: #23272d;
+  --hero-bg: #171a1e;
+} }
